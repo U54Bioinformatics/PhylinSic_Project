@@ -46,13 +46,16 @@ The rules for the pipeline are broken down into steps.
 
 *1.  Prepare the reference genome.*
 
-This does basic pre-processing and indexing of the reference genome
-needed for subsequent steps.
+Do basic pre-processing and indexing of the reference genome needed
+for subsequent steps.
 
 `
 copy_ref_genome                  Copy the reference genome to a local path.
+
 index_ref_genome                 Index the reference genome.
+
 create_ref_genome_dict           Create a sequence dictionary.
+
 `
 
 
