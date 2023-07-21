@@ -24,14 +24,15 @@ https://doi.org/10.1101/2022.09.27.509725
 
 # Quick Start
 
-# Instructions:
-# 1.  Set up input files
-#     XXX
-# 2.  Run snakemake.
-# 3.  Get results from XXX.
-#
-# How much disk space
-# How long it takes to run.
+1.  Set up input files
+    XXX
+2.  Run snakemake.
+3.  Get results from XXX.
+
+
+How much disk space?
+
+How long it takes to run?
 
 
 
@@ -43,20 +44,25 @@ https://doi.org/10.1101/2022.09.27.509725
 
 The rules for the pipeline are broken down into steps.
 
-1.  Prepare the reference genome.
-    This does basic pre-processing and indexing of the reference
-    genome needed for subsequent steps.
+*1.  Prepare the reference genome.*
 
+This does basic pre-processing and indexing of the reference genome
+needed for subsequent steps.
+
+`
 copy_ref_genome                  Copy the reference genome to a local path.
 index_ref_genome                 Index the reference genome.
 create_ref_genome_dict           Create a sequence dictionary.
+`
 
 
-2.  Demultiplex CellRanger output into single cells.
-    Each sample is split into batches of single cells that are
-    processed in parallel.  The files for each batch of cells are
-    stored in a directory.
+*2.  Demultiplex CellRanger output into single cells.*
 
+Each sample is split into batches of single cells that are processed
+in parallel.  The files for each batch of cells are stored in a
+directory.
+
+`
 extract_cellranger_bam           Find the BAM files in the CellRanger output.
 extract_bam_header               Pull out the header from a bam file.
 clean_cells_file                 Make a clean version of the user's cells.
@@ -65,6 +71,7 @@ extract_sample_alignments        Pull out the alignments for a sample.
 extract_batch_barcodes           Pull out the barcodes for a sample+batch
 extract_batch_alignments         Pull out the alignments for a sample+batch.
 demux_one_batch                  Demultiplex alignments into single cells.
+`
 
 
 3.  Preprocess the single cell files.
