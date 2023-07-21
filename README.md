@@ -11,15 +11,69 @@ https://doi.org/10.1101/2022.09.27.509725
 
 # Prerequisites
 
-* Snakemake
+This pipeline depends on software that must be pre-installed on your
+system.  The dependencies are listed below.  I have also included an
+example of how you might install it using conda.  However, everyone's
+environment is a little different, and software changes over time, so
+you may need to do things differently.
+
+* [snakemake](https://snakemake.readthedocs.io/en/stable/)
+
 * samtools
+
+```
+conda install -c bioconda samtools
+```
+
 * picard
+
+```
+conda install -c bioconda picard
+```
+
+
 * GATK4
+
+```
+conda install -c bioconda gatk4
+```
+
 * Varscan
+
+```
+conda install -c bioconda varscan
+```
+
 * numpy
+
+```
+conda install -c anaconda numpy
+```
+
+
 * scipy
+
+```
+conda install -c anaconda scipy
+```
+
 * R/babette
+
+```
+conda install -c bioconda bioconductor-ggtree
+conda install -c conda-forge r-phangorn
+conda install -c conda-forge r-treetools
+
+Rscript -e 'install.packages("babette", repos="http://cran.us.r-project.org")
+```
+
+
 * BEAST2
+
+```
+conda install -c bioconda beast2
+```
+
 
 
 # Quick Start
@@ -163,16 +217,17 @@ different types of information (e.g. can be done one site at a time,
 or requires information from multiple sites; requires predicted
 genotype call; etc.), we do the filtering in stages.
 
-Stage 1: Apply filters that can be done for each site independently of
-other sites.  These can be run in parallel.
+Stage 1: Apply the filters that evaluate each site independently of
+other sites.  Since the sites don't depend on each other, these
+filters are easy to run in parallel.
 
-Stage 2: Apply filters that require information from multiple
+Stage 2: Apply the filters that require information from multiple
 sites.
 
-Stage 3: Apply filters that require the genotypes to be called.  Will
-need to call the genotypes before running these filters.
+Stage 3: Apply the filters that require the genotypes to be called.
+We call the genotypes before running these filters.
 
-Stage 4: Apply the filters that should be run after other filters.
+Stage 4: Apply the filters that should be run last.
 
 ```
 Rules:
