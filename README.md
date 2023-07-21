@@ -9,7 +9,7 @@ bioRxiv 2022.09.27.509725.  doi:
 https://doi.org/10.1101/2022.09.27.509725
 
 
-# Prerequisites
+# Installation
 
 This pipeline depends on software that must be pre-installed on your
 system.  The dependencies are listed below.  I have also included an
@@ -75,18 +75,125 @@ conda install -c bioconda beast2
 ```
 
 
+Remember when I mentioned that you many need to do things differently?
+Well, I totally did.  I ran into some incompatibilities between Java
+and R that I could not figure out.  I ran into errors when trying to
+import the rJava library in R.
 
-# Quick Start
+```
+> library(rJava)
+Error: package or namespace load failed for ‘rJava’:
+ .onLoad failed in loadNamespace() for 'rJava', details:
+  call: dyn.load(file, DLLpath = DLLpath, ...)
+  error: unable to load shared object '.../R/library/rJava/libs/rJava.so':
+  libjvm.so: cannot open shared object file: No such file or directory
+```
 
-1.  Set up input files
-    XXX
-2.  Run snakemake.
-3.  Get results from XXX.
+After I fixed that (either by setting LD_LIBRARY_PATH or encoding a
+path with -rpath), I would run into a different problem when actually
+trying to run rJava:
+
+```
+> rJava::.jinit()
+* runs forever *
+```
+
+R and Java are needed to run BEAST2, the last step of the pipeline.  I
+ended up installing R+libraries, Java, and BEAST2 outside of Conda,
+and then configuring the last step of the pipeline to use my external
+version instead.  If you run into similar problems, there are
+instructions in the Snakefile for how to configure this.
 
 
-How much disk space?
 
-How long it takes to run?
+# Running the pipeline
+
+1.  Set up the input files.
+
+You should create a local directory and set it up like:
+
+```
+<your directory>/
+    Snakefile
+    data/
+        cells.txt
+        cellranger/
+            <sample1>/
+                outs/
+                    possorted_genome_bam.bam
+                    possorted_genome_bam.bam.bai
+                    ...
+                ...
+            <sample2>/
+              ... as in <sample1>
+            <sample3>/
+              ... as in <sample1>
+        genome.fa
+        known_sites1.vcf.gz
+        known_sites1.vcf.gz.tbi
+        known_sites2.vcf.gz
+        known_sites2.vcf.gz.tbi
+        known_sites3.vcf.gz
+        known_sites3.vcf.gz.tbi
+```
+
+Snakefile is downloaded from this repository.
+
+`cells.txt` is a text file where each line gives the name of a cell to
+be analyzed.  This should include only the high-quality cells in the
+data set (e.g. preprocess the data with CellRanger, filter for cells
+based on read depth, mitochondria, droplet analysis, etc.)  The names
+of the cells should be in the format <sample>_<barcode>, where the
+<sample> should match the name of a sample analyze by CellRanger.  An
+example file can be found [here](cells.txt).
+
+The `cellranger` directory contains the output from the CellRanger
+preprocessing.  Each subdirectory of `cellranger` should contain the
+data for a sample.  Although CellRanger creates many files, the only
+ones we are about are the BAM files `possorted_genome_bam.bam` that
+contain the alignments for samples.  All the other files are ignored.
+Please do not move the BAM files, or we won't be able to find them.
+
+`genome.fa` is the FASTA-formatted file containing the reference
+genome that the BAM files were aligned to.  This needs to be the same
+genome that CellRanger used.
+
+`known_sites1.vcf.gz` should contain the mutation sites XXX
+
+
+
+
+2.  Configure Snakefile.
+
+Open up Snakefile in your favorite text editor and configure the
+parameters inside.  This is how you control how the inference is done.
+The parameters are described in the file.  They are set to reasonable
+defaults, although you may need to customize them to your data set
+(e.g. if you are analyzing tumors with a very large number of
+mutations and need stricter mutation filtering.)
+
+
+3.  Run snakemake.
+
+While in <your directory>, start snakemake by doing something like:
+
+```
+snakemake --cores 8 --latency-wait 0 --rerun-triggers mtime
+```
+
+Hopefully, this will run smoothly.  Let XXX me know if you run into
+bugs in the pipeline.
+
+
+4.  Get results from XXX.
+
+```
+<your directory>/
+    output/
+        beast2/
+```
+
+
 
 
 
@@ -447,3 +554,15 @@ temp/
 scripts/
   demux_cellranger.py
   XXX
+
+
+
+
+# FAQ
+
+How much disk space?
+
+How long it takes to run?
+
+
+

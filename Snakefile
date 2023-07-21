@@ -11,6 +11,10 @@
 # There are parameters below that you can customize for your
 # analysis.
 
+# Versions:
+#  1  230721  Initial release.
+VERSION = 1
+
 
 
 # PARAMETERS - CRITICAL
