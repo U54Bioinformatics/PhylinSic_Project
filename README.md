@@ -163,21 +163,16 @@ different types of information (e.g. can be done one site at a time,
 or requires information from multiple sites; requires predicted
 genotype call; etc.), we do the filtering in stages.
 
-Stage 1: Apply filters that can be done for each site
-         independently of other sites.  These can be run in
-         parallel.
-         KEEP_SITES_WITH_HIGH_READS
-         REMOVE_CHROM_WITH_PREFIX
-         REMOVE_MULTIALLELIC_SITES
+Stage 1: Apply filters that can be done for each site independently of
+other sites.  These can be run in parallel.
+
 Stage 2: Apply filters that require information from multiple
-         sites.
-         REMOVE_CLOSE_SITES
-Stage 3: Apply filters that require the genotypes to be called.
-         Will need to call the genotypes before running these
-         filters.
-         KEEP_SITES_WITH_MIXED_CALLS
+sites.
+
+Stage 3: Apply filters that require the genotypes to be called.  Will
+need to call the genotypes before running these filters.
+
 Stage 4: Apply the filters that should be run after other filters.
-         KEEP_N_SITES_SEEN_IN_MOST_CELLS
 
 ```
 Rules:
