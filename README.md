@@ -12,9 +12,9 @@ https://doi.org/10.1101/2022.09.27.509725
 # Installation
 
 This pipeline depends on software that must be pre-installed on your
-system.  The dependencies are listed below.  I have also included an
-example of how you might install it using conda.  However, everyone's
-environment is a little different, and software changes over time, so
+system.  The dependencies are listed below.  I have also included
+instructions for installing with conda.  However, everyone's
+environment is a little different and software changes over time, so
 you may need to do things differently.
 
 * [snakemake](https://snakemake.readthedocs.io/en/stable/)
@@ -60,6 +60,7 @@ conda install -c anaconda scipy
 * R/babette
 
 ```
+conda install -c bioconda r-argparse
 conda install -c bioconda bioconductor-ggtree
 conda install -c conda-forge r-phangorn
 conda install -c conda-forge r-treetools
@@ -75,10 +76,10 @@ conda install -c bioconda beast2
 ```
 
 
-Remember when I mentioned that you many need to do things differently?
-Well, I totally did.  I ran into some incompatibilities between Java
-and R that I could not figure out.  I ran into errors when trying to
-import the rJava library in R.
+Remember when I mentioned that you may need to do things differently?
+Well, I needed to.  I ran into an incompatibility between Java and R
+that I could not resolve.  The rJava installed by conda did not
+work.
 
 ```
 > library(rJava)
@@ -89,21 +90,24 @@ Error: package or namespace load failed for ‘rJava’:
   libjvm.so: cannot open shared object file: No such file or directory
 ```
 
-After I fixed that (either by setting LD_LIBRARY_PATH or encoding a
-path with -rpath), I would run into a different problem when actually
-trying to run rJava:
+After I fixed this issue (either by setting LD_LIBRARY_PATH or
+encoding a path with -rpath), I still could not run rJava:
 
 ```
 > rJava::.jinit()
 * runs forever *
 ```
 
-R and Java are needed to run BEAST2, the last step of the pipeline.  I
-ended up installing R+libraries, Java, and BEAST2 outside of Conda,
-and then configuring the last step of the pipeline to use my external
-version instead.  If you run into similar problems, there are
-instructions in the Snakefile for how to configure this.
+This is a problem because R and Java are needed to run BEAST2, the
+last step of the pipeline.  I ended up installing R+libraries, Java,
+and BEAST2 outside of Conda, and then configuring the last step of the
+pipeline to use my manually installed version.  If you run into
+similar problems, there are instructions in the Snakefile for how to
+force the last rule to use a specific installation of R and BEAST2.
 
+Another issue: the picard and gatk4 packages work with different
+versions of openjdk.  To work aroud this, I use picard from conda and
+configure `gatk` to use an external installation.
 
 
 # Running the pipeline
@@ -161,8 +165,6 @@ genome that CellRanger used.
 `known_sites1.vcf.gz` should contain the mutation sites XXX
 
 
-
-
 2.  Configure Snakefile.
 
 Open up Snakefile in your favorite text editor and configure the
@@ -175,14 +177,14 @@ mutations and need stricter mutation filtering.)
 
 3.  Run snakemake.
 
-While in <your directory>, start snakemake by doing something like:
+While in <your directory>, start snakemake by running something like:
 
 ```
 snakemake --cores 8 --latency-wait 0 --rerun-triggers mtime
 ```
 
-Hopefully, this will run smoothly.  Let XXX me know if you run into
-bugs in the pipeline.
+Hopefully, this will run all the way through without errors.  If you
+run into bugs in the pipeline, please let me know.  XXX
 
 
 4.  Get results from XXX.
@@ -192,8 +194,6 @@ bugs in the pipeline.
     output/
         beast2/
 ```
-
-
 
 
 
@@ -536,6 +536,7 @@ logs/
   interval_{interval}.intervals
   pseudobulk.clean.contig.{interval}.log
 temp/
+XXX RENAME THESE
   {sample}.pb.files
   {sample}.pb.merged.header
   {sample}.pb.header

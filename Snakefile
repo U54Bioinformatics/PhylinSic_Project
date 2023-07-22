@@ -20,6 +20,17 @@ VERSION = 1
 # PARAMETERS - CRITICAL
 # ---------------------
 
+
+# XXX
+
+SAMTOOLS = "samtools"
+PICARD = "picard"
+#GATK = "gatk"
+VARSCAN = "varscan"
+
+GATK = "singularity exec /data/genomidata/images/gatk4.210610.sif gatk"
+
+
 # In the last step of the pipeline, we run phylogenetic inference
 # by calling BEAST2 (a Java program) from R using the babette
 # library.  While all the software required in the rest of the
@@ -45,11 +56,20 @@ RSCRIPT = "Rscript"
 BEAST2_PATH = None
 
 
+x = os.getcwd()
+RSCRIPT = (
+    "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 singularity run "
+    "--bind %s "
+    "/data/genomidata/images/babette.230713.sif Rscript" % x
+    )
+BEAST2_PATH = "/usr/local/beast/lib/launcher.jar"
 #HOME = os.path.expanduser("~")
-#RSCRIPT = "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 singularity run --bind . /data/genomidata/images/babette.230713.sif Rscript"
 #BEAST2_PATH = os.path.join(
 #    HOME, "mambaforge/envs/snakemake/share/beast2-2.6.3-2/lib/launcher.jar")
-#BEAST2_PATH = "/usr/local/beast/lib/launcher.jar"
+
+#/data/jchang4/biocore5/output/beast2/beast2.infile.txt
+
+
 
 
 
@@ -276,9 +296,12 @@ CELLS_PER_BATCH_GENOTYPE_CALLING = 512
 # -----
 # You should not need to change anything below.
 
+import os
+opj = os.path.join
+
+
 CELL_FILE = "data/cells.txt"
 assert os.path.exists(CELL_FILE), "File not found: %s" % CELL_FILE
-
 
 GENOME_DIR = "output"
 DEMUX_DIR = "output/02_demux"
@@ -289,11 +312,23 @@ MATRIX_DIR = "output/06_matrix"
 FILTER_DIR = "output/07_filter"
 GENOTYPE_DIR = "output/08_genotype"
 
+GENOME_LOG_DIR = "logs/01_genome"
+DEMUX_LOG_DIR = "logs/02_demux"
+PREPROC_LOG_DIR = "logs/03_preproc"
+PBULK_LOG_DIR = "logs/04_pbulk"
+CALL_LOG_DIR = "logs/05_call"
+MATRIX_LOG_DIR = "logs/06_matrix"
 
 
+x = ["output", GENOME_DIR, DEMUX_DIR, PREPROC_DIR, PBULK_DIR, CALL_DIR, 
+     MATRIX_DIR, FILTER_DIR, GENOTYPE_DIR, 
+     "logs", GENOME_LOG_DIR, DEMUX_LOG_DIR, PREPROC_LOG_DIR, PBULK_LOG_DIR,
+     CALL_LOG_DIR, MATRIX_LOG_DIR,
+     ]
+for x in x:
+    if not os.path.exists(x):
+        os.mkdir(x)
 
-import os
-opj = os.path.join
 
 def read_cell_file(filename):
     """Read the user's cells.txt file to get a list of the samples.
@@ -458,9 +493,11 @@ rule index_ref_genome:
     output:
         opj(GENOME_DIR, "genome.fa.fai")
     log:
-        "logs/genome.fa.fai.log"
+        opj(GENOME_LOG_DIR, "genome.fa.fai.log")
+    params:
+        SAMTOOLS=SAMTOOLS,
     shell:
-        "samtools faidx {input} --fai-idx {output} >& {log}"
+        "{params.SAMTOOLS} faidx {input} --fai-idx {output} >& {log}"
 
 
 rule create_ref_genome_dict:
@@ -469,7 +506,7 @@ rule create_ref_genome_dict:
     output:
         opj(GENOME_DIR, "genome.dict")
     log:
-        "logs/genome.dict.log"
+        opj(GENOME_LOG_DIR, "genome.dict.log")
     shell:
         "picard CreateSequenceDictionary \
              R={input} \
@@ -492,8 +529,10 @@ rule extract_bam_header:
         opj(DEMUX_DIR, "{sample}.bam")
     output:
         opj(DEMUX_DIR, "{sample,[A-Za-z0-9_-]+}.header.txt")
+    params:
+        SAMTOOLS=SAMTOOLS
     shell:
-        "samtools view {input} -H > {output}"
+        "{params.SAMTOOLS} view {input} -H > {output}"
 
 
 rule clean_cells_file:
@@ -528,9 +567,11 @@ rule extract_sample_alignments:
         opj(DEMUX_DIR, "{sample,[A-Za-z0-9_-]+}.alignments.txt")
     log:
         # XXX LOG FILE
-        "logs/{sample}.alignments.log"
+        opj(DEMUX_LOG_DIR, "{sample}.alignments.log")
+    params:
+        SAMTOOLS=SAMTOOLS
     shell:
-         "samtools view {input.bam_file} | \
+         "{params.SAMTOOLS} view {input.bam_file} | \
           LC_ALL=C grep -F -f {input.barcode_file} 1> {output} 2> {log}"
 
 
@@ -554,7 +595,7 @@ rule extract_batch_alignments:
     output:
         opj(DEMUX_DIR, "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.alignments.txt")
     log:
-        "logs/{sample}.{batch}.alignments.log"
+        opj(DEMUX_LOG_DIR, "{sample}.{batch}.alignments.log")
     shell:
         "cat {input.align_file} | \
          LC_ALL=C grep -F -f {input.barcode_file} 1> {output} 2> {log}"
@@ -580,13 +621,16 @@ rule convert_sam_to_bam:
         directory(
             opj(PREPROC_DIR, "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.bam"))
     params:
+        DEMUX_DIR=DEMUX_DIR,
         PREPROC_DIR=PREPROC_DIR,
+        SAMTOOLS=SAMTOOLS,
     shell:
         """mkdir -p {params.PREPROC_DIR}
         for i in {input}/*.sam; do
-             j=`echo $i | sed -e 's/.sam/.bam/g'`;
-             mkdir -p `dirname $j`;
-             samtools view -bS -o $j $i;
+             j=`echo $i | sed -e 's/.sam/.bam/g'`
+             j=`echo $j | sed -e 's#{params.DEMUX_DIR}#{params.PREPROC_DIR}#g'`
+             mkdir -p `dirname $j`
+             {params.SAMTOOLS} view -bS -o $j $i
         done
         """
 
@@ -600,11 +644,12 @@ rule add_read_groups:
     params:
         sample="{sample}",
     log:
-        "logs/{sample}.{batch}.cells.rg.log"
+        opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg.log")
     shell:
-        "for i in {input}/*.bam; do \
-             j=`echo $i | sed -e 's/cells.bam/cells.rg.bam/'`; \
-             mkdir -p `dirname $j`; \
+        """
+        for i in {input}/*.bam; do 
+             j=`echo $i | sed -e 's/cells.bam/cells.rg.bam/'`
+             mkdir -p `dirname $j`
              picard AddOrReplaceReadGroups \
                  I=$i \
                  O=$j \
@@ -613,43 +658,9 @@ rule add_read_groups:
                  PU=platform \
                  SM={params.sample} \
                  PL=ILLUMINA \
-                 VALIDATION_STRINGENCY=LENIENT >& {log}; \
-         done"
-
-
-## rule sort_bam_by_coord_sc:
-##     input:
-##         "output/{sample}.{batch}.cells.rg.bam"
-##     output:
-##         directory(
-##             "output/{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg_coord.bam")
-##     params:
-##         sample="{sample}",
-##     log:
-##         "logs/{sample}.{batch}.cells.rg_coord.log"
-##     shell:
-##         "for i in {input}/*.bam; do \
-##              j=`echo $i | sed -e 's/cells.rg.bam/cells.rg_coord.bam/'`; \
-##              mkdir -p `dirname $j`; \
-##              samtools sort -O bam -T . -m 4G $i -o $j >& {log}; \
-##          done"
-##
-##
-## rule index_bam_rc_coord_sc:
-##     input:
-##         "output/{sample}.{batch}.cells.rg_coord.bam"
-##     output:
-##         directory(
-##             "output/{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg_coord_index.bam")
-##     log:
-##         "logs/{sample}.{batch}.cells.rg_coord_index.log"
-##     shell:
-##         "for i in {input}/*.bam; do \
-##              j=`echo $i | sed -e 's/cells.rg_coord.bam/cells.rg_coord_index.bam/'`; \
-##              mkdir -p `dirname $j`; \
-##              cp -p $i $j; \
-##              samtools index $j >& {log}; \
-##          done"
+                 VALIDATION_STRINGENCY=LENIENT >& {log}
+        done
+        """
 
 
 rule sort_bam:
@@ -663,22 +674,27 @@ rule sort_bam:
             PREPROC_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg_contig.bam"))
     log:
-        "logs/{sample}.{batch}.cells.rg_contig.log"
+        opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg_contig.log")
+    params:
+        PICARD=PICARD
     shell:
         # Picard version >= 2.24 requires REFERENCE_SEQUENCE= and
         # SEQUENCE_DICTIONARY=.
-        # Current version (on 230606) in BioConda is
-        # 2.18.29-SNAPSHOT.
-        """for i in {input.bam_dir}/*.bam; do
-             j=`echo $i | sed -e 's/cells.rg_coord_index.bam/cells.rg_contig.bam/'`;
-             mkdir -p `dirname $j`;
-             picard ReorderSam
-                 I=$i
-                 O=$j
-                 REFERENCE={input.ref_file}
-                 VALIDATION_STRINGENCY=LENIENT
-                 ALLOW_INCOMPLETE_DICT_CONCORDANCE=true
-                 TMP_DIR=temp >& {log};
+        # On 230606, version in BioConda is 2.18.29-SNAPSHOT.
+        # On 230721, version in BioConda is 3.0.0.
+        """
+        mkdir -p temp
+        for i in {input.bam_dir}/*.bam; do
+             j=`echo $i | sed -e 's/cells.rg.bam/cells.rg_contig.bam/'`
+             mkdir -p `dirname $j`
+             {params.PICARD} ReorderSam \
+                 -I $i \
+                 -O $j \
+                 -R {input.ref_file} \
+                 -SD {input.ref_dict} \
+                 --VALIDATION_STRINGENCY LENIENT \
+                 --ALLOW_INCOMPLETE_DICT_CONCORDANCE true \
+                 --TMP_DIR temp >& {log}
         done"""
 
 
@@ -689,14 +705,18 @@ rule index_bam:
         directory(opj(PREPROC_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg_contig_index.bam"))
     log:
-        "logs/{sample}.{batch}.cells.rg_contig_index.log"
+        opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg_contig_index.log")
+    params:
+        SAMTOOLS=SAMTOOLS
     shell:
-        """for i in {input}/*.bam; do
-             j=`echo $i | sed -e 's/cells.rg_contig.bam/cells.rg_contig_index.bam/'`;
-             mkdir -p `dirname $j`;
-             cp -p $i $j;
-             samtools index $j >& {log};
-        done"""
+        """
+        for i in {input}/*.bam; do
+             j=`echo $i | sed -e 's/cells.rg_contig.bam/cells.rg_contig_index.bam/'`
+             mkdir -p `dirname $j`
+             cp -p $i $j
+             {params.SAMTOOLS} index $j >& {log}
+        done
+        """
 
 
 rule split_n_trim:
@@ -709,17 +729,21 @@ rule split_n_trim:
         directory(opj(PREPROC_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg_contig_index_snt.bam"))
     log:
-        "logs/{sample}.{batch}.cells.rg_contig_index_snt.log"
+        opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg_contig_index_snt.log")
+    params:
+        GATK=GATK
     shell:
-        """for i in {input.bam_dir}/*.bam; do
-             j=`echo $i | sed -e 's/cells.rg_contig_index.bam/cells.rg_contig_index_snt.bam/'`;
-             mkdir -p `dirname $j`;
-             gatk SplitNCigarReads
-                 --TMP_DIR temp
-                 --max-reads-in-memory 150000
-                 -R {input.ref_file}
-                 -I $i
-                 -O $j >& {log};
+        # --TMP_DIR temp \
+        """
+        for i in {input.bam_dir}/*.bam; do
+             j=`echo $i | sed -e 's/cells.rg_contig_index.bam/cells.rg_contig_index_snt.bam/'`
+             mkdir -p `dirname $j`
+             {params.GATK} SplitNCigarReads \
+                 --max-reads-in-memory 150000 \
+                 --tmp-dir temp \
+                 -R {input.ref_file} \
+                 -I $i \
+                 -O $j >& {log}
         done"""
 
 
@@ -742,13 +766,16 @@ rule make_base_recalibration_report:
         directory(opj(PREPROC_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg_contig_index_snt.report"))
     log:
-        "logs/{sample}.{batch}.cells.rg_contig_index_snt_report.log"
+        opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg_contig_index_snt_report.log")
+    params:
+        GATK=GATK
+    # XXX USE SAMTOOLS, GATK, ETC
     shell:
         """
         for i in {input.bam_dir}/*.bam; do
              j=`echo $i | sed -e 's/cells.rg_contig_index_snt.bam/cells.rg_contig_index_snt.report/'`
              mkdir -p `dirname $j`
-             gatk BaseRecalibrator \
+             {params.GATK} BaseRecalibrator \
                  --reference {input.ref_file} \
                  --input $i \
                  --output $j \
@@ -772,18 +799,21 @@ rule recalibrate_base_quality_score:
         directory(opj(PREPROC_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg_contig_index_snt_recal.bam"))
     log:
-        "logs/{sample}.{batch}.cells.rg_contig_index_snt_recal.log"
+        opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg_contig_index_snt_recal.log")
+    params:
+        GATK=GATK
     shell:
-        """for i in {input.bam_dir}/*.bam; do
-             j=`echo $i | sed -e 's/cells.rg_contig_index_snt.bam/cells.rg_contig_index_snt_recal.bam/'`
-             k=`echo $i | sed -e 's/cells.rg_contig_index_snt.bam/cells.rg_contig_index_snt.report/'`
-             mkdir -p `dirname $j`
-             gatk ApplyBQSR \
-                 -R {input.ref_file} \
-                 --bqsr-recal-file $k \
-                 -I $i \
-                 -O $j \
-                 >& {log}
+        """
+        for i in {input.bam_dir}/*.bam; do
+            j=`echo $i | sed -e 's/cells.rg_contig_index_snt.bam/cells.rg_contig_index_snt_recal.bam/'`
+            k=`echo $i | sed -e 's/cells.rg_contig_index_snt.bam/cells.rg_contig_index_snt.report/'`
+            mkdir -p `dirname $j`
+            {params.GATK} ApplyBQSR \
+                -R {input.ref_file} \
+                --bqsr-recal-file $k \
+                -I $i \
+                -O $j \
+                >& {log}
         done"""
 
 
@@ -794,17 +824,19 @@ rule merge_cells_to_batch:
     output:
         opj(PBULK_DIR, "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.merged.bam")
     log:
-        "logs/pbulk/{sample}.{batch}.merged.log"
+        opj(PBULK_LOG_DIR, "{sample}.{batch}.merged.log")
     params:
         sample="{sample}",
         batch="{batch}",
         PBULK_DIR=PBULK_DIR,
+        SAMTOOLS=SAMTOOLS,
     shell:
-        """mkdir -p {params.PBULK_DIR}
+        """
+        mkdir -p {params.PBULK_DIR}
         FILES=`ls {input}/*.bam`
         TF=temp/{params.sample}.{params.batch}.pb.files
         echo "${{FILES[*]}}" > $TF
-        samtools merge -f -b $TF {output} >& {log}
+        {params.SAMTOOLS} merge -f -b $TF {output} >& {log}
         """
 
 
@@ -830,13 +862,15 @@ rule merge_batches_to_sample:
     output:
         opj(PBULK_DIR, "{sample,[A-Za-z0-9_-]+}.merged.bam")
     log:
-        "logs/pbulk/{sample}.merged.log"
+        opj(PBULK_LOG_DIR, "{sample}.merged.log")
     params:
         sample="{sample}",
-    shell: """
+        SAMTOOLS=SAMTOOLS,
+    shell: 
+        """
         TF=temp/{params.sample}.pb.files
         echo "{input}" | tr ' ' '\n' > $TF
-        samtools merge -f -b $TF {output} >& {log}
+        {params.SAMTOOLS} merge -f -b $TF {output} >& {log}
         """
 
 
@@ -850,7 +884,6 @@ rule clean_sample_header:
         clean_header_file="temp/{sample}.pb.clean.header",
         log_file="logs/pbulk/{sample}.log",
     script:
-        # Re-use clean_batch_header.py to clean these headers too.
         "scripts/clean_batch_header.py"
 
 
@@ -861,11 +894,14 @@ rule merge_samples_to_pseudobulk:
     output:
         opj(PBULK_DIR, "pseudobulk.merged.bam"),
     log:
-        "logs/pseudobulk.merged.log"
-    shell: """
+        opj(PBULK_LOG_DIR, "pseudobulk.merged.log")
+    params:
+        SAMTOOLS=SAMTOOLS
+    shell: 
+        """
         TF=temp/pseudobulk.pb.files
         echo "{input}" | tr ' ' '\n' > $TF
-        samtools merge -f -b $TF {output} >& {log}
+        {params.SAMTOOLS} merge -f -b $TF {output} >& {log}
         """
 
 rule clean_pseudobulk_header:
@@ -890,19 +926,24 @@ rule sort_pseudobulk_by_contig:
     output:
         opj(PBULK_DIR, "pseudobulk.bam")
     log:
-        "logs/pseudobulk.sort.log"
+        opj(PBULK_LOG_DIR, "pseudobulk.sort.log")
+    params:
+        PICARD=PICARD
     shell:
         # Picard version >= 2.24 requires REFERENCE_SEQUENCE= and
         # SEQUENCE_DICTIONARY=.
         # Current version (on 230606) in BioConda is
         # 2.18.29-SNAPSHOT.
-        """picard -Xmx16g ReorderSam
-             I={input.bam_file}
-             O={output}
-             REFERENCE={input.ref_file}
-             VALIDATION_STRINGENCY=LENIENT
-             ALLOW_INCOMPLETE_DICT_CONCORDANCE=true
-             TMP_DIR=temp >& {log}"""
+        """
+        {params.PICARD} -Xmx16g ReorderSam \
+             -I {input.bam_file} \
+             -O {output} \
+             -R {input.ref_file} \
+             -SD {input.ref_dict} \
+             --VALIDATION_STRINGENCY LENIENT \
+             --ALLOW_INCOMPLETE_DICT_CONCORDANCE true \
+             --TMP_DIR temp >& {log}
+        """
 
 
 rule index_pseudobulk_bam:
@@ -911,9 +952,11 @@ rule index_pseudobulk_bam:
     output:
         opj(PBULK_DIR, "pseudobulk.bam.bai")
     log:
-        "logs/pseudobulk.index.log"
+        opj(PBULK_LOG_DIR, "pseudobulk.index.log")
+    params:
+        SAMTOOLS=SAMTOOLS
     shell:
-        "samtools index {input} >& {log}"
+        "{params.SAMTOOLS} index {input} >& {log}"
 
 
 rule make_interval_file:
@@ -939,10 +982,12 @@ rule call_variants:
     output:
         opj(CALL_DIR, "variants.{interval,\d+}.vcf")
     log:
-        "logs/pseudobulk.clean.contig.{interval}.log"
+        opj(CALL_LOG_DIR, "variants.{interval}.log")
+    params:
+        GATK=GATK
     shell:
         """
-        gatk HaplotypeCaller \
+        {params.GATK} HaplotypeCaller \
             --input {input.bam_file} \
             --output {output} \
             --reference {input.ref_file} \
@@ -1012,7 +1057,7 @@ rule filter_variant_calls:
         keep_calls_with_min_total_reads=KEEP_CALLS_WITH_MIN_TOTAL_READS,
         keep_calls_with_min_vaf=KEEP_CALLS_WITH_MIN_VAF,
     script:
-        "scripts/filter_matrix_calls.py"
+        "scripts/filter_variant_calls.py"
 
 
 rule extract_matrix_coordinates:
@@ -1035,24 +1080,32 @@ rule make_pileup_from_cells:
     output:
         directory(opj(
             MATRIX_DIR, "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.raw.pileup"))
+    log:
+        opj(MATRIX_LOG_DIR, "{sample}.{batch}.raw.pileup.log")
     params:
-        MATRIX_DIR=MATRIX_DIR
+        PREPROC_DIR=PREPROC_DIR,
+        MATRIX_DIR=MATRIX_DIR,
+        SAMTOOLS=SAMTOOLS,
     shell:
         """
-        mkdir -p {params.MATRIX_DIR}
         for i in {input.bam_dir}/*.bam; do
-           j=`echo $i|sed -e 's/cells.rg_contig_index_snt_recal.bam/raw.pileup/'`
+             j=`echo $i | \
+               sed -e 's/.cells.rg_contig_index_snt_recal.bam/.raw.pileup/'`
              j=`echo $j | sed -e 's/\.bam$/.pileup/'`
+             j=`echo $j | \
+               sed -e 's#{params.PREPROC_DIR}#{params.MATRIX_DIR}#g'`
              k=`echo $j | sed -e 's#output/#logs/#'`
              mkdir -p `dirname $j`
              mkdir -p `dirname $k`
-             samtools mpileup \
+             {params.SAMTOOLS} mpileup \
                   -f {input.ref_file} \
                   -l {input.coord_file} \
                   -R -B -q 0 -Q 0 -d10000000 \
                   $i 2> $k 1> $j
-        done
+        done >& {log}
         """
+
+# XXX remove "-1" from cell names
 
 
 rule clean_pileup_file:
@@ -1079,15 +1132,18 @@ rule convert_pileup_to_vcf:
     output:
         directory(opj(MATRIX_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.coverage.vcf"))
+    params:
+        VARSCAN=VARSCAN
     shell:
         """
         for i in {input}/*.pileup; do
              j=`echo $i | sed -e 's/.pileup/.coverage.vcf/'`
              j=`echo $j | sed -e 's/.pileup$/.vcf/'`
              k=`echo $j | sed -e 's#output/#logs/#'`
+             k=`echo $k | sed -e 's/.vcf$/.log/'`
              mkdir -p `dirname $j`
              mkdir -p `dirname $k`
-             varscan mpileup2cns $i \
+             {params.VARSCAN} mpileup2cns $i \
                 --min-coverage 0 \
                 --min-reads2 0 \
                 --min-avg-qual 0 \
@@ -1425,7 +1481,7 @@ rule extract_geno_calling_features2:
         opj(GENOTYPE_DIR, "ref_count.features.txt"),
         opj(GENOTYPE_DIR, "alt_count.features.txt"),
     script:
-        "scripts/extract_geno_calling_features2.py"
+        "scripts/extract_geno_calling_features1.py"
 
 
 rule calc_neighbor_scores2:
@@ -1483,9 +1539,11 @@ rule make_fasta_file:
 
 rule run_beast2:
     input:
-        "output/mutations.fa",
+        "output/mutations.fa"
     output:
         directory("output/beast2"),
+    log:
+        "output/beast2.log"
     params:
         RSCRIPT=RSCRIPT,
         beast2_path=BEAST2_PATH,
@@ -1503,5 +1561,5 @@ rule run_beast2:
             --tree_prior {params.tree_prior} \
             --iterations {params.iterations} \
             --sample_interval {params.sample_interval} \
-            --rng_seed {params.rng_seed} \
+            --rng_seed {params.rng_seed} >& {log}
         """
