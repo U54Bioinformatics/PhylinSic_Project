@@ -6,8 +6,8 @@ Phylogenetic inference from single-cell RNA-seq data.
 bioRxiv 2022.09.27.509725.  doi:
 https://doi.org/10.1101/2022.09.27.509725
 
-There is a Snakemake pipeline that can take 10X Genomics Chromium
-single cell RNA-Seq data processed with CellRanger and generate a
+There is a Snakemake pipeline that takes 10X Genomics Chromium single
+cell RNA-Seq data processed with CellRanger and generates a
 phylogenetic tree.
 
 If you have your own pipelines already, we also provide just the R
@@ -59,12 +59,8 @@ Rscript -e 'install.packages("babette", repos="http://cran.us.r-project.org")
 conda install -c bioconda beast2
 ```
 
-* The [Snakefile](Snakefile) that contains the Snakemake rules.
-
-Remember when I mentioned that you may need to do things differently?
-Well, I needed to.  I ran into an incompatibility between Java and R
-that I could not resolve.  The rJava installed by conda did not
-work.
+*Note*: Using Conda, I ran into an incompatibility between Java and R
+that I could not resolve.  The rJava installed by Conda did not work.
 
 ```
 > library(rJava)
@@ -83,16 +79,16 @@ encoding a path with -rpath), I still could not run rJava:
 * runs forever *
 ```
 
-This is a problem because R and Java are needed to run BEAST2, the
-last step of the pipeline.  I ended up installing R+libraries, Java,
-and BEAST2 outside of Conda, and then configuring the last step of the
-pipeline to use my manually installed version.  If you run into
-similar problems, there are instructions in the Snakefile for how to
-force the last rule to use a specific installation of R and BEAST2.
+To work around this problem, I installed R+libraries, Java, and BEAST2
+outside of Conda, and then configured the pipeline to use my version
+instead.  If you run into similar problems, there are instructions in
+the Snakefile that describe how to do this.
 
-Another issue: the picard and gatk4 packages work with different
-versions of openjdk.  To work aroud this, I use picard from conda and
-configure `gatk` to use an external installation.
+*Another issue*: the picard and gatk4 packages in Conda require
+different versions of openjdk.  When installing gatk4, conda
+downgraded openjdk, which broke picard.  To work aroud this, I used
+picard from conda and installed GATK4 outside conda (and configured
+the Snakefile accordingly).
 
 
 # <A NAME="Start">Quick Start</A>
@@ -103,9 +99,9 @@ You should create a local directory and set it up like:
 
 ```
 <your directory>/
-    [Snakefile](Snakefile)
+    Snakefile
     data/
-        [cells.txt](cells.txt)
+        cells.txt
         cellranger/
             <sample1>/
                 outs/
@@ -126,7 +122,7 @@ You should create a local directory and set it up like:
         known_sites3.vcf.gz.tbi
 ```
 
-Snakefile is downloaded from this repository.
+`Snakefile` is downloaded from this repository.
 
 `cells.txt` is a text file where each line gives the name of a cell to
 be analyzed.  This should include only the high-quality cells in the
@@ -166,18 +162,18 @@ compressed and indexed with bgzip and tabix.
 
 2.  Configure Snakefile.
 
-Download [Snakefile](Snakefile) to the computer you want to run the
-pipeline.  Open your favorite text editor and configure the parameters
-in the file.  This is how you control how the inference is done.  The
-parameters described in the file are set to reasonable defaults,
-although you may need to customize them to your data set (e.g. if you
-are analyzing tumors with a very large number of mutations and need
-stricter mutation filtering.)
+Download [Snakefile](Snakefile) to the computer you will run the
+pipeline on.  Open a text editor and configure the parameters in the
+file.  The parameters are set to reasonable defaults, although you may
+need to customize them to your data set (e.g. if you are analyzing
+tumors with a very large number of mutations and need stricter
+mutation filtering.)
 
 
 3.  Run snakemake.
 
-While in <your directory>, start snakemake by running something like:
+While in `<your directory>`, start snakemake by running something
+like:
 
 ```
 snakemake --cores 8 --latency-wait 0 --rerun-triggers mtime
@@ -422,10 +418,9 @@ faster, RAM is needed to load large matrices of mutations into memory,
 and disk is needed to process the alignments for all the cells.
 
 How much of everything you need depends on the size of your data set
-and how long you are willing to wait around for the computation to
-finish.  But if I had to set a minimum lower bound, let's say you'll
-need a server with 16 cores, 32 Gb RAM, and 1 Tb hard drive.  And
-LINUX.
+and how long you are willing to wait for the computation to finish.
+But if I had to set a minimum lower bound, let's say you'll need a
+server with 16 cores, 32 Gb RAM, and 1 Tb hard drive.  And LINUX.
 
 
 
