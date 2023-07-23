@@ -19,7 +19,7 @@ Table of Contents:
 - [Installation](#Installation)
 
 
-<A NAME="Installation"></A># Installation
+# <A NAME="Installation">Installation</A>
 
 This pipeline depends on software that must be pre-installed on your
 system.  The dependencies are listed below.  I have also included
