@@ -6,14 +6,14 @@ Phylogenetic inference from single-cell RNA-seq data.
 bioRxiv 2022.09.27.509725.  doi:
 https://doi.org/10.1101/2022.09.27.509725
 
-There is a Snakemake pipeline that can take 10X Geonmics Chromium
+There is a Snakemake pipeline that can take 10X Genomics Chromium
 single cell RNA-Seq data processed with CellRanger and generate a
 phylogenetic tree.
 
-If you have your own pipelines, we also provide R functions that will
-smooth, impute, and call the genotypes for scRNA-Seq data as described
-in the paper.
-[smoothing](smoothing.R) code
+If you have your own pipelines already, we also provide just the R
+functions that will smooth, impute, and call the genotypes for
+scRNA-Seq data as described in the paper.  You can download the
+[smoothing.R](smoothing.R) file.
 
 This README contains sections:
 - [Installation](#Installation)
@@ -24,67 +24,38 @@ This README contains sections:
 
 # <A NAME="Installation">Installation</A>
 
-This pipeline depends on software that must be pre-installed on your
-system.  The dependencies are listed below.  I have also included
-instructions for installing with conda.  However, everyone's
-environment is a little different and software changes over time, so
-you may need to do things differently.
+This pipeline requires the following software to be installed on your
+system.  I have included instructions for installing these with conda.
+However, everyone's environment is a little different, and software
+changes over time, so you may need to do things differently.
 
 * [Snakemake](https://snakemake.readthedocs.io/en/stable/)
 
-* samtools
+* Samtools
+* Picard
+* GATK4
+* Varscan
+* Python3 + numpy + scipy
+* R + babette
+* BEAST2
+
 
 ```
 conda install -c bioconda samtools
-```
-
-* picard
-
-```
 conda install -c bioconda picard
-```
-
-
-* GATK4
-
-```
 conda install -c bioconda gatk4
-```
-
-* Varscan
-
-```
 conda install -c bioconda varscan
-```
 
-* numpy
-
-```
 conda install -c anaconda numpy
-```
-
-
-* scipy
-
-```
 conda install -c anaconda scipy
-```
 
-* R/babette
-
-```
 conda install -c bioconda r-argparse
 conda install -c bioconda bioconductor-ggtree
 conda install -c conda-forge r-phangorn
 conda install -c conda-forge r-treetools
 
 Rscript -e 'install.packages("babette", repos="http://cran.us.r-project.org")
-```
 
-
-* BEAST2
-
-```
 conda install -c bioconda beast2
 ```
 
