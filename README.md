@@ -125,7 +125,7 @@ versions of openjdk.  To work aroud this, I use picard from conda and
 configure `gatk` to use an external installation.
 
 
-# <A HREF="Start">Quick Start</A>
+# <A NAME="Start">Quick Start</A>
 
 1.  Set up the input files.
 
@@ -249,7 +249,7 @@ the raw output from the BEAST2 analysis is also available.
 
 
 
-# <A HREF="Pipeline">Pipeline</A>
+# <A NAME="Pipeline">Pipeline</A>
 
 The pipeline is broken down into nine tasks.
 
@@ -442,7 +442,7 @@ run_beast2                       Run BEAST2 to generate the phylogenies.
 
 
 
-# <A HREF="FAQ">FAQ</A>
+# <A NAME="FAQ">FAQ</A>
 
 - What kind of computer do I need to run this pipeline?
 
