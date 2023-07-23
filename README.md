@@ -1,7 +1,5 @@
-# PhylinSic
-
-This contains code for phylogenetic inference from single-cell RNA-Seq
-data that is described in:
+This repository contains code for phylogenetic inference from
+single-cell RNA-Seq data that is described in:
 
 Liu X, Griffiths J, Bishara I, Liu J, Bild AH, and Chang JT.
 Phylogenetic inference from single-cell RNA-seq data.
@@ -17,8 +15,11 @@ smooth, impute, and call the genotypes for scRNA-Seq data as described
 in the paper.
 [smoothing](smoothing.R) code
 
+Table of Contents:
+- [Installation](#Installation)
 
-# Installation
+
+<A NAME="Installation"></A># Installation
 
 This pipeline depends on software that must be pre-installed on your
 system.  The dependencies are listed below.  I have also included
