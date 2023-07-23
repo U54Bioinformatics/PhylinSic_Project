@@ -61,7 +61,6 @@ conda install -c bioconda beast2
 
 * The [Snakefile](Snakefile) that contains the Snakemake rules.
 
-
 Remember when I mentioned that you may need to do things differently?
 Well, I needed to.  I ran into an incompatibility between Java and R
 that I could not resolve.  The rJava installed by conda did not
