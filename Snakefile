@@ -848,7 +848,7 @@ rule clean_batch_header:
     params:
         header_file="temp/{sample}.{batch}.pb.header",
         clean_header_file="temp/{sample}.{batch}.pb.clean.header",
-        log_file="logs/{sample}.{batch}.pb.clean.log",
+        log_file=opj(PBULK_LOG_DIR, "{sample}.{batch}.pb.clean.log"),
     script:
         "scripts/clean_batch_header.py"
 
@@ -882,7 +882,7 @@ rule clean_sample_header:
     params:
         header_file="temp/{sample}.pb.header",
         clean_header_file="temp/{sample}.pb.clean.header",
-        log_file="logs/pbulk/{sample}.log",
+        log_file=opj(PBULK_LOG_DIR, "{sample}.log"),
     script:
         "scripts/clean_batch_header.py"
 
@@ -912,7 +912,7 @@ rule clean_pseudobulk_header:
     params:
         header_file="temp/pseudobulk.merged.header",
         clean_header_file="temp/pseudobulk.header",
-        log_file="logs/pseudobulk.cleaned.log",
+        log_file=opj(PBULK_LOG_DIR, "pseudobulk.cleaned.log"),
     script:
         "scripts/clean_batch_header.py"
 

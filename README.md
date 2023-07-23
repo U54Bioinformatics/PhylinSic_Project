@@ -1,12 +1,21 @@
 # PhylinSic
 
 This contains code for phylogenetic inference from single-cell RNA-Seq
-data.  This is described in:
+data that is described in:
 
 Liu X, Griffiths J, Bishara I, Liu J, Bild AH, and Chang JT.
 Phylogenetic inference from single-cell RNA-seq data.
 bioRxiv 2022.09.27.509725.  doi:
 https://doi.org/10.1101/2022.09.27.509725
+
+There is a Snakemake pipeline that can take 10X Geonmics Chromium
+single cell RNA-Seq data processed with CellRanger and generate a
+phylogenetic tree.
+
+If you have your own pipelines, we also provide R functions that will
+smooth, impute, and call the genotypes for scRNA-Seq data as described
+in the paper.
+[smoothing](smoothing.R) code
 
 
 # Installation
@@ -17,7 +26,9 @@ instructions for installing with conda.  However, everyone's
 environment is a little different and software changes over time, so
 you may need to do things differently.
 
-* [snakemake](https://snakemake.readthedocs.io/en/stable/)
+XXX what kind of computer to use.
+
+* [Snakemake](https://snakemake.readthedocs.io/en/stable/)
 
 * samtools
 
@@ -75,6 +86,8 @@ Rscript -e 'install.packages("babette", repos="http://cran.us.r-project.org")
 conda install -c bioconda beast2
 ```
 
+* The [Snakefile](Snakefile) that contains the Snakemake rules.
+
 
 Remember when I mentioned that you may need to do things differently?
 Well, I needed to.  I ran into an incompatibility between Java and R
@@ -118,9 +131,9 @@ You should create a local directory and set it up like:
 
 ```
 <your directory>/
-    Snakefile
+    [Snakefile](Snakefile)
     data/
-        cells.txt
+        [cells.txt](cells.txt)
         cellranger/
             <sample1>/
                 outs/
@@ -167,12 +180,13 @@ genome that CellRanger used.
 
 2.  Configure Snakefile.
 
-Open up Snakefile in your favorite text editor and configure the
-parameters inside.  This is how you control how the inference is done.
-The parameters are described in the file.  They are set to reasonable
-defaults, although you may need to customize them to your data set
-(e.g. if you are analyzing tumors with a very large number of
-mutations and need stricter mutation filtering.)
+Download [Snakefile](Snakefile) to the computer you want to run the
+pipeline.  Open your favorite text editor and configure the parameters
+in the file.  This is how you control how the inference is done.  The
+parameters described in the file are set to reasonable defaults,
+although you may need to customize them to your data set (e.g. if you
+are analyzing tumors with a very large number of mutations and need
+stricter mutation filtering.)
 
 
 3.  Run snakemake.
