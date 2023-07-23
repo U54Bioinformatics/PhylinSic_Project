@@ -26,8 +26,6 @@ instructions for installing with conda.  However, everyone's
 environment is a little different and software changes over time, so
 you may need to do things differently.
 
-XXX what kind of computer to use.
-
 * [Snakemake](https://snakemake.readthedocs.io/en/stable/)
 
 * samtools
@@ -175,7 +173,21 @@ Please do not move the BAM files, or we won't be able to find them.
 genome that the BAM files were aligned to.  This needs to be the same
 genome that CellRanger used.
 
-`known_sites1.vcf.gz` should contain the mutation sites XXX
+`known_sites1.vcf.gz` (and `known_sites2.vcf.gz` and
+`known_sites3.vcf.gz`) should contain known mutation sites to be used
+for realignment and base quality recalibration.
+
+We typically use:
+```
+Mills_and_1000G_gold_standard.indels.b37.vcf.gz
+1000G_phase1.indels.b37.vcf.gz
+dbsnp_138.b37.vcf.gz
+```
+
+You can get these files from the Broad online.  Make sure they are
+compressed and indexed with bgzip and tabix.
+
+
 
 
 2.  Configure Snakefile.
@@ -198,19 +210,37 @@ snakemake --cores 8 --latency-wait 0 --rerun-triggers mtime
 ```
 
 Hopefully, this will run all the way through without errors.  If you
-run into bugs in the pipeline, please let me know.  XXX
+run into bugs in the pipeline, please file an
+[issue](https://github.com/U54Bioinformatics/PhylinSic_Project/issues).
 
 
-4.  Get results from XXX.
+4.  Get the phylogeny.
+
+This pipeline will generate a phylogenetic tree of the cells.
+
+XXX implement phylogeny stuff
 
 ```
 <your directory>/
     output/
         beast2/
+            beast2.infile.txt
+            beast2.outfile.txt
+            beast2.model.RDS
+            screen.log
+            trace.log
+            tree.log
+        phylogeny/
+            beast2.trees.nexus.txt
+            max_clade_cred.nexus.txt
+            max_clade_cred.newick.txt
+            max_clade_cred.dist.txt
+            max_clade_cred.metadata.txt
+
 ```
 
-
-
+If you are interested in the raw data from the phylogenetic inference,
+the raw output from the BEAST2 analysis is also available.
 
 
 
@@ -300,10 +330,9 @@ will be the candidate sites to use for the phylogeny reconstruction.
 Rules:
 make_interval_file               Break the genome down into intervals.
 call_variants                    Call variants on a single interval.
-XXX get rid of duplicate SNPs
 keep_only_snps                   We only want SNPs, remove INDELs.
 parse_vcf_files                  Pull out variant information from VCF files.
-collect_variant_metadata         Collect XXX metadata about variants.
+collect_variant_metadata         Get metadata (coords, cells) about variants.
 convert_to_matrix_by_batch       Reformat variant information to a matrix.
 merge_matrix_batches             Merge into a single matrix with Ref/Alt/VAF.
 filter_variant_calls             Filter variant calls based on read depth.
@@ -324,7 +353,7 @@ clean_pileup_file                Clean up the pileups.
 convert_pileup_to_vcf            Convert the pileup into VCF format.
 extract_coverage_from_vcf        Pull out the coverage.
 add_cell_names_to_coverage       Add the cell names to the coverage files.
-merge_coverage_by_batch          Merge each XXX batch.
+merge_coverage_by_batch          Merge coverage for each batch of cells.
 merge_coverage_batches           Merge all coverage into one file.
 make_coverage_matrix             Reformat into a site x cell matrix.
 ```
@@ -405,179 +434,24 @@ run_beast2                       Run BEAST2 to generate the phylogenies.
 
 
 
-# Directory structure:
-
-data/
-  cells.txt       XXX
-  cellranger/     A directory with all the results from CellRanger.
-                  It should be organized according to the following
-                  structure:
-                  cellranger_results/
-                    <sample1>/
-                      <sample>.mri
-                      _cmdline
-                      _filelist
-                      outs/
-                        possorted_genome_bam.bam
-                        possorted_genome_bam.bam.bai
-                        ...
-                      SC_RNA_COUNTER_CS/
-                        ...
-                    <sample2>/
-                      ... as in <sample1>
-                    <sample3>/
-                      ... as in <sample1>
-  genome.fa       Reference genome used by CellRanger for alignment.
-  known_sites1.vcf.gz
-  known_sites1.vcf.gz.tbi
-  known_sites2.vcf.gz
-  known_sites2.vcf.gz.tbi
-  known_sites3.vcf.gz
-  known_sites3.vcf.gz.tbi
-output/
-  # 1.  Prepare the reference files.
-  genome.fa
-  genome.fa.fai
-  genome.dict
-  # 2.  Demultiplex CellRanger output into single cells.
-  cells.txt             # A cleaned up version of the cells file.
-  02_demux/{sample}.bam
-  02_demux/{sample}.barcodes.txt
-  02_demux/{sample}.header.txt
-  02_demux/{sample}.alignments.txt
-  02_demux/{sample}.{batch}.barcodes.txt
-  02_demux/{sample}.{batch}.alignments.txt
-  02_demux/{sample}.{batch}.cells.sam/
-  # 3.  Preprocess the single cell files.
-  03_preproc/{sample}.{batch}.cells.bam/
-  03_preproc/{sample}.{batch}.cells.rg.bam/
-  03_preproc/{sample}.{batch}.cells.rg_contig.bam/
-  03_preproc/{sample}.{batch}.cells.rg_contig_index.bam/
-  03_preproc/{sample}.{batch}.cells.rg_contig_index_snt.bam/
-  03_preproc/{sample}.{batch}.cells.rg_contig_index_snt.report/
-  03_preproc/{sample}.{batch}.cells.rg_contig_index_snt_recal.bam/
-  # 4.  Merge single cells to a pseudobulk sample.
-  04_pbulk/{sample}.{batch}.merged.bam
-  04_pbulk/{sample}.{batch}.bam
-  04_pbulk/{sample}.merged.bam
-  04_pbulk/{sample}.bam
-  04_pbulk/pseudobulk.merged.bam
-  04_pbulk/pseudobulk.cleaned.bam
-  04_pbulk/pseudobulk.bam
-  04_pbulk/pseudobulk.bam.bai
-  # 5.  Call variants on the pseudobulk sample.
-  05_call/interval_{interval}.intervals
-  05_call/variants.{interval}.vcf
-  05_call/variants.snp_only.{interval}.vcf
-  05_call/variants.table.txt
-  05_call/variants.metadata.txt
-  05_call/variants.unfiltered.matrix.{batch}.txt
-  05_call/variants.unfiltered.matrix.txt
-  05_call/variants.matrix.txt
-  05_call/variants.coord.txt
-  # 6.  Make a site x cell matrix containing the ref/alt read depth.
-  06_matrix/{sample}.{batch}.raw.pileup/
-  06_matrix/{sample}.{batch}.pileup/
-  06_matrix/{sample}.{batch}.coverage.vcf/
-  06_matrix/{sample}.{batch}.coverage.txt/
-  06_matrix/{sample}.{batch}.coverage.with_cells.txt
-  06_matrix/{sample}.{batch}.coverage.merged.txt
-  06_matrix/coverage.table.txt
-  06_matrix/coverage.matrix.txt
-  # 7.  Filter the sites.
-  07_filter/coverage.matrix.{batch}.txt
-  07_filter/coverage.matrix.filter1.{batch}.txt
-  07_filter/coverage.matrix.filter1.txt
-  07_filter/coverage.matrix.filter2.txt
-  07_filter/coverage.metadata.txt
-  07_filter/ref_count.all.txt
-  07_filter/alt_count.all.txt
-  07_filter/knn.features.txt
-  07_filter/ref_count.features.txt
-  07_filter/alt_count.features.txt
-  07_filter/knn.neighbors.{batch}.txt
-  07_filter/knn.neighbors.txt
-  07_filter/ref_count.{batch}.txt
-  07_filter/alt_count.{batch}.txt
-  07_filter/genotypes.{batch}.txt
-  07_filter/probabilities.{batch}.txt
-  07_filter/genotypes.txt
-  07_filter/probabilities.txt
-  07_filter/genotype.count.txt
-  07_filter/mixed_genotypes.txt
-  07_filter/coverage.matrix.filter3.txt
-  07_filter/coverage.matrix.filter4.txt
-  # 8.  Call/impute genotypes.
-  08_genotype/coverage.metadata.txt
-  08_genotype/ref_count.all.txt
-  08_genotype/ref_count.all.txt
-  08_genotype/knn.features.txt
-  08_genotype/ref_count.features.txt
-  08_genotype/alt_count.features.txt
-  08_genotype/knn.neighbors.0.txt
-  08_genotype/knn.neighbors.txt
-  08_genotype/genotypes.txt
-  08_genotype/probabilities.txt
-  # 9.  Make the phylogeny.
-  mutations.fa
-  beast2/
-    beast2.infile.txt
-    beast2.outfile.txt
-    beast2.model.RDS
-    screen.log
-    trace.log
-    tree.log
-logs/
-  genome.fa.fai.log
-  genome.dict.log
-  {sample}.alignments.log
-  {sample}.{batch}.alignments.log
-  {sample}.{batch}.cells.rg.log
-  {sample}.{batch}.cells.rg_contig.log
-  {sample}.{batch}.cells.rg_contig_index.log
-  {sample}.{batch}.cells.rg_contig_index_snt.log
-  {sample}.{batch}.cells.rg_contig_index_snt_report.log
-  {sample}.{batch}.cells.rg_contig_index_snt_recal.log
-  # 4.  Merge single cells to a pseudobulk sample.
-  {sample}.{batch}.pb.log
-  {sample}.pb.log
-  {sample}.pb.clean.log
-  pseudobulk.merged.log
-  pseudobulk.cleaned.log
-  pseudobulk.sort.log
-  pseudobulk.index.log
-  # 5.  Call variants on the pseudobulk sample.
-  interval_{interval}.intervals
-  pseudobulk.clean.contig.{interval}.log
-temp/
-XXX RENAME THESE
-  {sample}.pb.files
-  {sample}.pb.merged.header
-  {sample}.pb.header
-  {sample}.{batch}.pb.header
-  {sample}.{batch}.pb.clean.header
-  {sample}.{batch}.pb.files
-  pseudobulk.pb.files
-  pseudobulk.merged.header
-  pseudobulk.header
-  {sample}.{batch}.coverage.merged.01.txt
-  {sample}.{batch}.coverage.merged.02.txt
-  {sample}.{batch}.coverage.merged.03.txt
-  coverage.01.txt
-  coverage.02.txt
-  coverage.03.txt
-scripts/
-  demux_cellranger.py
-  XXX
 
 
 
 
 # FAQ
 
-How much disk space?
+- What kind of computer do I need to run this pipeline?
 
-How long it takes to run?
+In short, you need a lot of everything.  More CPUs help pre-process
+the cells faster, faster CPUs helps the phylogenies to be calculated
+faster, RAM is needed to load large matrices of mutations into memory,
+and disk is needed to process the alignments for all the cells.
+
+How much of everything you need depends on the size of your data set
+and how long you are willing to wait around for the computation to
+finish.  But if I had to set a minimum lower bound, let's say you'll
+need a server with 16 cores, 32 Gb RAM, and 1 Tb hard drive.  And
+LINUX.
 
 
 

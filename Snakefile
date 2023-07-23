@@ -21,7 +21,8 @@ VERSION = 1
 # ---------------------
 
 
-# XXX
+# This pipeline requires the following software.  Set these parameters
+# to the commands used to execute them.
 
 SAMTOOLS = "samtools"
 PICARD = "picard"
@@ -29,7 +30,6 @@ PICARD = "picard"
 VARSCAN = "varscan"
 
 GATK = "singularity exec /data/genomidata/images/gatk4.210610.sif gatk"
-
 
 # In the last step of the pipeline, we run phylogenetic inference
 # by calling BEAST2 (a Java program) from R using the babette
@@ -47,15 +47,21 @@ GATK = "singularity exec /data/genomidata/images/gatk4.210610.sif gatk"
 #
 # If you're not sure what to do, install this software from Conda
 # first.  If it doesn't work, then either try to fix the Conda
-# installation, or install it yourself separately.  Good luck!
-
+# installation, or install it yourself separately.
 
 RSCRIPT = "Rscript"
 
-# Should point to launcher.jar, e.g. /usr/local/beast/lib/launcher.jar.
+# This should point to the "launcher.jar" file that is installed with
+# BEAST2, e.g. 
+#   /usr/local/beast/lib/launcher.jar.
+#
+# If set to None, I will try to find it myself.
+
 BEAST2_PATH = None
 
 
+
+# XXX
 x = os.getcwd()
 RSCRIPT = (
     "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 singularity run "
@@ -67,9 +73,8 @@ BEAST2_PATH = "/usr/local/beast/lib/launcher.jar"
 #BEAST2_PATH = os.path.join(
 #    HOME, "mambaforge/envs/snakemake/share/beast2-2.6.3-2/lib/launcher.jar")
 
-#/data/jchang4/biocore5/output/beast2/beast2.infile.txt
 
-
+# XXX test with filter conditions == None
 
 
 
@@ -79,8 +84,6 @@ BEAST2_PATH = "/usr/local/beast/lib/launcher.jar"
 # We call variants on a "pseudobulk" sample where the reads from
 # all cells are merged.  These parameters are used to select for
 # high quality variants.
-
-# XXX set to Xuan's parameters
 
 
 # Each of these can filters can be disabled by setting to None.
@@ -213,7 +216,7 @@ BEAST2_TREE_PRIOR = "yule"
 # How many iterations to run the analysis.  For our data, we run
 # ~100 million iterations or so for the final analysis, and
 # shorter (e.g. 1 million) when testing.
-BEAST2_ITERATIONS = 10000
+BEAST2_ITERATIONS = 100000000
 
 # How frequently (in number of iterations) to collect statistics
 # on the sampling.
@@ -288,6 +291,166 @@ CELLS_PER_BATCH_GENOTYPE_CALLING = 512
 
 
 
+############################################################
+# Directory Structure
+
+# output/
+#   # 1.  Prepare the reference files.
+#   genome.fa
+#   genome.fa.fai
+#   genome.dict
+#   # 2.  Demultiplex CellRanger output into single cells.
+#   cells.txt             # A cleaned up version of the cells file.
+#   02_demux/{sample}.bam
+#   02_demux/{sample}.barcodes.txt
+#   02_demux/{sample}.header.txt
+#   02_demux/{sample}.alignments.txt
+#   02_demux/{sample}.{batch}.barcodes.txt
+#   02_demux/{sample}.{batch}.alignments.txt
+#   02_demux/{sample}.{batch}.cells.sam/
+#   # 3.  Preprocess the single cell files.
+#   03_preproc/{sample}.{batch}.cells.bam/
+#   03_preproc/{sample}.{batch}.cells.rg.bam/
+#   03_preproc/{sample}.{batch}.cells.rg_contig.bam/
+#   03_preproc/{sample}.{batch}.cells.rg_contig_index.bam/
+#   03_preproc/{sample}.{batch}.cells.rg_contig_index_snt.bam/
+#   03_preproc/{sample}.{batch}.cells.rg_contig_index_snt.report/
+#   03_preproc/{sample}.{batch}.cells.rg_contig_index_snt_recal.bam/
+#   # 4.  Merge single cells to a pseudobulk sample.
+#   04_pbulk/{sample}.{batch}.merged.bam
+#   04_pbulk/{sample}.{batch}.bam
+#   04_pbulk/{sample}.merged.bam
+#   04_pbulk/{sample}.bam
+#   04_pbulk/pseudobulk.merged.bam
+#   04_pbulk/pseudobulk.cleaned.bam
+#   04_pbulk/pseudobulk.bam
+#   04_pbulk/pseudobulk.bam.bai
+#   # 5.  Call variants on the pseudobulk sample.
+#   05_call/interval_{interval}.intervals
+#   05_call/variants.{interval}.vcf
+#   05_call/variants.snp_only.{interval}.vcf
+#   05_call/variants.table.txt
+#   05_call/variants.metadata.txt
+#   05_call/variants.unfiltered.matrix.{batch}.txt
+#   05_call/variants.unfiltered.matrix.txt
+#   05_call/variants.matrix.txt
+#   05_call/variants.coord.txt
+#   # 6.  Make a site x cell matrix containing the ref/alt read depth.
+#   06_matrix/{sample}.{batch}.raw.pileup/
+#   06_matrix/{sample}.{batch}.pileup/
+#   06_matrix/{sample}.{batch}.coverage.vcf/
+#   06_matrix/{sample}.{batch}.coverage.txt/
+#   06_matrix/{sample}.{batch}.coverage.with_cells.txt
+#   06_matrix/{sample}.{batch}.coverage.merged.txt
+#   06_matrix/coverage.table.txt
+#   06_matrix/coverage.matrix.txt
+#   # 7.  Filter the sites.
+#   07_filter/coverage.matrix.{batch}.txt
+#   07_filter/coverage.matrix.filter1.{batch}.txt
+#   07_filter/coverage.matrix.filter1.txt
+#   07_filter/coverage.matrix.filter2.txt
+#   07_filter/coverage.metadata.txt
+#   07_filter/ref_count.all.txt
+#   07_filter/alt_count.all.txt
+#   07_filter/knn.features.txt
+#   07_filter/ref_count.features.txt
+#   07_filter/alt_count.features.txt
+#   07_filter/knn.neighbors.{batch}.txt
+#   07_filter/knn.neighbors.txt
+#   07_filter/ref_count.{batch}.txt
+#   07_filter/alt_count.{batch}.txt
+#   07_filter/genotypes.{batch}.txt
+#   07_filter/probabilities.{batch}.txt
+#   07_filter/genotypes.txt
+#   07_filter/probabilities.txt
+#   07_filter/genotype.count.txt
+#   07_filter/mixed_genotypes.txt
+#   07_filter/coverage.matrix.filter3.txt
+#   07_filter/coverage.matrix.filter4.txt
+#   # 8.  Call/impute genotypes.
+#   08_genotype/coverage.metadata.txt
+#   08_genotype/ref_count.all.txt
+#   08_genotype/ref_count.all.txt
+#   08_genotype/knn.features.txt
+#   08_genotype/ref_count.features.txt
+#   08_genotype/alt_count.features.txt
+#   08_genotype/knn.neighbors.0.txt
+#   08_genotype/knn.neighbors.txt
+#   08_genotype/genotypes.txt
+#   08_genotype/probabilities.txt
+#   # 9.  Make the phylogeny.
+#   mutations.fa
+#   phylogeny/
+#     beast2.infile.txt
+#     beast2.outfile.txt
+#     beast2.model.RDS
+#     screen.log
+#     trace.log
+#     tree.log
+# logs/
+#   genome.fa.fai.log
+#   genome.dict.log
+#   {sample}.alignments.log
+#   {sample}.{batch}.alignments.log
+#   {sample}.{batch}.cells.rg.log
+#   {sample}.{batch}.cells.rg_contig.log
+#   {sample}.{batch}.cells.rg_contig_index.log
+#   {sample}.{batch}.cells.rg_contig_index_snt.log
+#   {sample}.{batch}.cells.rg_contig_index_snt_report.log
+#   {sample}.{batch}.cells.rg_contig_index_snt_recal.log
+#   # 4.  Merge single cells to a pseudobulk sample.
+#   {sample}.{batch}.pb.log
+#   {sample}.pb.log
+#   {sample}.pb.clean.log
+#   pseudobulk.merged.log
+#   pseudobulk.cleaned.log
+#   pseudobulk.sort.log
+#   pseudobulk.index.log
+#   # 5.  Call variants on the pseudobulk sample.
+#   interval_{interval}.intervals
+#   pseudobulk.clean.contig.{interval}.log
+# temp/
+# scripts/
+#   # 2.  Demultiplex CellRanger output into single cells.
+#   extract_cellranger_bam.py
+#   clean_cells_file.py
+#   extract_sample_barcodes.py
+#   extract_batch_barcodes.py
+#   demux_one_batch.py
+#   # 4.  Merge single cells to a pseudobulk sample.
+#   clean_batch_header.py
+#   # 5.  Call variants on the pseudobulk sample.
+#   make_interval_file.py
+#   keep_only_snps.py
+#   parse_vcf_files.py
+#   collect_variant_metadata.py
+#   convert_to_matrix_by_batch.py
+#   merge_matrix_batches.py
+#   filter_variant_calls.py
+#   extract_matrix_coordinates.py
+#   # 6.  Make a site x cell matrix containing the ref/alt read depth.
+#   extract_coverage_from_vcf.py
+#   make_coverage_matrix.py
+#   # 7.  Filter the sites.
+#   split_matrix_by_row.py
+#   filter_sites1.py
+#   merge_filter1_matrix.py
+#   filter_sites2.py
+#   prepare_geno_calling_files1.py
+#   select_geno_calling_features1.py
+#   extract_geno_calling_features1.py
+#   calc_neighbor_scores1.R
+#   select_neighbors1.py
+#   split_matrix_by_row.py
+#   call_genotypes1.R
+#   merge_matrix_by_row.py
+#   count_genotypes.py
+#   list_sites_with_mixed_genotypes.py
+#   filter_sites3.py
+#   filter_sites4.py
+#   # 9.  Make the phylogeny.
+#   make_fasta_file.py
+#   run_beast2.R
 
 
 
@@ -320,10 +483,12 @@ CALL_LOG_DIR = "logs/05_call"
 MATRIX_LOG_DIR = "logs/06_matrix"
 
 
+# Create the directories for the files we need to create.
 x = ["output", GENOME_DIR, DEMUX_DIR, PREPROC_DIR, PBULK_DIR, CALL_DIR, 
      MATRIX_DIR, FILTER_DIR, GENOTYPE_DIR, 
      "logs", GENOME_LOG_DIR, DEMUX_LOG_DIR, PREPROC_LOG_DIR, PBULK_LOG_DIR,
      CALL_LOG_DIR, MATRIX_LOG_DIR,
+     "temp",
      ]
 for x in x:
     if not os.path.exists(x):
@@ -435,45 +600,7 @@ GENOTYPE_CALLING_BATCHES = ["%0*d" % (nd, i) for i in range(n)]
 
 rule all:
     input:
-        #["output/samfiles.batched/%s.%s.sam" % (sample, batch)
-        # for (sample, batch) in PREPROCESSING_BATCHES]
-        #list({f"output/{sample}.barcodes.txt"
-        #     for (sample, batch) in PREPROCESSING_BATCHES})
-        #list({f"output/{sample}.header.txt"
-        #     for (sample, batch) in PREPROCESSING_BATCHES})
-        #list({f"output/{sample}.barcodes_only.sam"
-        #     for (sample, batch) in PREPROCESSING_BATCHES})
-        #"output/015_R_LIVER.0.barcodes_only.sam"
-        #"output/015_R_LIVER.0.cells.rg_contig_index_snt.report"
-        #"output/015_R_LIVER.0.cells.rg_contig_index_snt_recal.bam"
-        #"output/015_R_LIVER.pseudobulk.bam"
-        #["output/015_R_LIVER.%s.pb.headers" % batch
-        # for (sample, batch) in PREPROCESSING_BATCHES if sample == "015_R_LIVER"]
-        #"output/015_R_LIVER.0.pb.clean.bam"
-        #"output/015_R_LIVER.pb.clean.bam"
-        #"output/pseudobulk.clean.contig.vcf"
-        #["output/interval_%s.txt" % x for x in INTERVALS]
-        #"output/pseudobulk.clean.contig.0.snp_only.vcf"
-        #"output/pseudobulk.variants.matrix.00.txt"
-        #"output/pseudobulk.variants.filtered.matrix.txt"
-        #"output/pseudobulk.variants.filtered.coord.txt"
-        #"output/015_R_LIVER.clean.pileup"
-        #"output/015_R_LIVER.vcf"
-        #"output/015_R_LIVER.0.clean.pileup"
-        #"output/015_R_LIVER.0.coverage.txt"
-        #"output/coverage.txt"
-        #"output/sites.matrix.txt"
-        #"output/sites.matrix.filter1.0.txt"
-        #"output/sites.matrix.filter2.txt"
-        #"output/sites.metadata.txt"
-        #"output/ref.feature.count.txt"
-        #"output/knn.neighbors.txt"
-        #"output/ref.count.0.txt"
-        #"output/genotypes.txt"
-        #"output/sites.matrix.filter4.txt"
-        #"output/genotypes.f.txt"
-        #"output/mutations.fa"
-        "output/beast2"
+        "output/phylogeny"
 
 
 rule copy_ref_genome:
@@ -507,10 +634,14 @@ rule create_ref_genome_dict:
         opj(GENOME_DIR, "genome.dict")
     log:
         opj(GENOME_LOG_DIR, "genome.dict.log")
+    params:
+        PICARD=PICARD,
     shell:
-        "picard CreateSequenceDictionary \
+        """
+        {params.PICARD} CreateSequenceDictionary \
              R={input} \
-             O={output} >& {log}"
+             O={output} >& {log}
+        """
 
 
 rule extract_cellranger_bam:
@@ -566,7 +697,6 @@ rule extract_sample_alignments:
     output:
         opj(DEMUX_DIR, "{sample,[A-Za-z0-9_-]+}.alignments.txt")
     log:
-        # XXX LOG FILE
         opj(DEMUX_LOG_DIR, "{sample}.alignments.log")
     params:
         SAMTOOLS=SAMTOOLS
@@ -641,16 +771,17 @@ rule add_read_groups:
     output:
         directory(opj(
             PREPROC_DIR, "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.cells.rg.bam"))
-    params:
-        sample="{sample}",
     log:
         opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg.log")
+    params:
+        sample="{sample}",
+        PICARD=PICARD,
     shell:
         """
         for i in {input}/*.bam; do 
              j=`echo $i | sed -e 's/cells.bam/cells.rg.bam/'`
              mkdir -p `dirname $j`
-             picard AddOrReplaceReadGroups \
+             {params.PICARD} AddOrReplaceReadGroups \
                  I=$i \
                  O=$j \
                  ID=group \
@@ -683,7 +814,6 @@ rule sort_bam:
         # On 230606, version in BioConda is 2.18.29-SNAPSHOT.
         # On 230721, version in BioConda is 3.0.0.
         """
-        mkdir -p temp
         for i in {input.bam_dir}/*.bam; do
              j=`echo $i | sed -e 's/cells.rg.bam/cells.rg_contig.bam/'`
              mkdir -p `dirname $j`
@@ -695,7 +825,11 @@ rule sort_bam:
                  --VALIDATION_STRINGENCY LENIENT \
                  --ALLOW_INCOMPLETE_DICT_CONCORDANCE true \
                  --TMP_DIR temp >& {log}
-        done"""
+        done
+        # For some reason, Picard makes the permission of the TEMP_DIR
+        # to 777.  Fix it.
+        chmod 0755 temp
+        """
 
 
 rule index_bam:
@@ -733,7 +867,6 @@ rule split_n_trim:
     params:
         GATK=GATK
     shell:
-        # --TMP_DIR temp \
         """
         for i in {input.bam_dir}/*.bam; do
              j=`echo $i | sed -e 's/cells.rg_contig_index.bam/cells.rg_contig_index_snt.bam/'`
@@ -769,7 +902,6 @@ rule make_base_recalibration_report:
         opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg_contig_index_snt_report.log")
     params:
         GATK=GATK
-    # XXX USE SAMTOOLS, GATK, ETC
     shell:
         """
         for i in {input.bam_dir}/*.bam; do
@@ -834,7 +966,7 @@ rule merge_cells_to_batch:
         """
         mkdir -p {params.PBULK_DIR}
         FILES=`ls {input}/*.bam`
-        TF=temp/{params.sample}.{params.batch}.pb.files
+        TF={params.PBULK_DIR}/{params.sample}.{params.batch}.files
         echo "${{FILES[*]}}" > $TF
         {params.SAMTOOLS} merge -f -b $TF {output} >& {log}
         """
@@ -846,8 +978,8 @@ rule clean_batch_header:
     output:
         opj(PBULK_DIR, "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.bam")
     params:
-        header_file="temp/{sample}.{batch}.pb.header",
-        clean_header_file="temp/{sample}.{batch}.pb.clean.header",
+        header_file=opj(PBULK_DIR, "{sample}.{batch}.merged.header"),
+        clean_header_file=opj(PBULK_DIR, "{sample}.{batch}.header"),
         log_file=opj(PBULK_LOG_DIR, "{sample}.{batch}.pb.clean.log"),
     script:
         "scripts/clean_batch_header.py"
@@ -866,9 +998,10 @@ rule merge_batches_to_sample:
     params:
         sample="{sample}",
         SAMTOOLS=SAMTOOLS,
+        PBULK_DIR=PBULK_DIR,
     shell: 
         """
-        TF=temp/{params.sample}.pb.files
+        TF={params.PBULK_DIR}/{params.sample}.files
         echo "{input}" | tr ' ' '\n' > $TF
         {params.SAMTOOLS} merge -f -b $TF {output} >& {log}
         """
@@ -880,8 +1013,8 @@ rule clean_sample_header:
     output:
         opj(PBULK_DIR, "{sample,[A-Za-z0-9_-]+}.bam")
     params:
-        header_file="temp/{sample}.pb.header",
-        clean_header_file="temp/{sample}.pb.clean.header",
+        header_file=opj(PBULK_DIR, "{sample}.merged.header"),
+        clean_header_file=opj(PBULK_DIR, "{sample}.header"),
         log_file=opj(PBULK_LOG_DIR, "{sample}.log"),
     script:
         "scripts/clean_batch_header.py"
@@ -896,10 +1029,11 @@ rule merge_samples_to_pseudobulk:
     log:
         opj(PBULK_LOG_DIR, "pseudobulk.merged.log")
     params:
-        SAMTOOLS=SAMTOOLS
+        SAMTOOLS=SAMTOOLS,
+        PBULK_DIR=PBULK_DIR,
     shell: 
         """
-        TF=temp/pseudobulk.pb.files
+        TF={params.PBULK_DIR}/pseudobulk.files
         echo "{input}" | tr ' ' '\n' > $TF
         {params.SAMTOOLS} merge -f -b $TF {output} >& {log}
         """
@@ -910,8 +1044,8 @@ rule clean_pseudobulk_header:
     output:
         opj(PBULK_DIR, "pseudobulk.cleaned.bam"),
     params:
-        header_file="temp/pseudobulk.merged.header",
-        clean_header_file="temp/pseudobulk.header",
+        header_file=opj(PBULK_DIR, "pseudobulk.merged.header"),
+        clean_header_file=opj(PBULK_DIR, "pseudobulk.header"),
         log_file=opj(PBULK_LOG_DIR, "pseudobulk.cleaned.log"),
     script:
         "scripts/clean_batch_header.py"
@@ -943,6 +1077,9 @@ rule sort_pseudobulk_by_contig:
              --VALIDATION_STRINGENCY LENIENT \
              --ALLOW_INCOMPLETE_DICT_CONCORDANCE true \
              --TMP_DIR temp >& {log}
+        # For some reason, Picard makes the permission of the TEMP_DIR
+        # to 777.  Fix it.
+        chmod 0755 temp
         """
 
 
@@ -1105,7 +1242,6 @@ rule make_pileup_from_cells:
         done >& {log}
         """
 
-# XXX remove "-1" from cell names
 
 
 rule clean_pileup_file:
@@ -1197,11 +1333,13 @@ rule merge_coverage_by_batch:
     output:
         opj(MATRIX_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.coverage.merged.txt")
+    params:
+        MATRIX_DIR=MATRIX_DIR
     shell:
         """
-        temp1=temp/{sample}.{batch}.coverage.merged.01.txt
-        temp2=temp/{sample}.{batch}.coverage.merged.02.txt
-        temp3=temp/{sample}.{batch}.coverage.merged.03.txt
+        temp1={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.01.txt
+        temp2={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.02.txt
+        temp3={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.03.txt
         for i in {input}/*.txt; do
             cat {input}/*.txt > $temp1
             grep -v "Chrom" $temp1 > $temp2
@@ -1216,11 +1354,13 @@ rule merge_coverage_batches:
          for (sample, batch) in PREPROCESSING_BATCHES]
     output:
         opj(MATRIX_DIR, "coverage.table.txt")
+    params:
+        MATRIX_DIR=MATRIX_DIR
     shell:
         """
-        temp1=temp/coverage.01.txt
-        temp2=temp/coverage.02.txt
-        temp3=temp/coverage.03.txt
+        temp1={params.MATRIX_DIR}/coverage.01.txt
+        temp2={params.MATRIX_DIR}/coverage.02.txt
+        temp3={params.MATRIX_DIR}/coverage.03.txt
         cat {input} > $temp1
         grep -v "Chrom" $temp1 > $temp2
         sort -T . --parallel 4 -k1,1 -k2,2n -k3,4 $temp2 > $temp3
@@ -1244,14 +1384,8 @@ rule split_matrix_for_filter1:
     output:
         [opj(FILTER_DIR, "coverage.matrix.%s.txt" % batch)
          for batch in FILTER1_BATCHES]
-        #opj(FILTER_DIR, "coverage.matrix.{batch,[A-Za-z0-9_-]+}.txt")
-    # XXX
-    #params:
-    #    batch="{batch}",
-    #    num_batches=len(FILTER1_BATCHES),
     script:
         "scripts/split_matrix_by_row.py"
-        #"scripts/split_matrix_for_filter1.py"
 
 
 rule filter_sites1:
@@ -1277,7 +1411,6 @@ rule merge_filter1_matrix:
         "scripts/merge_filter1_matrix.py"
 
 
-# XXX filter out Alt == "." ?
 rule filter_sites2:
     input:
         opj(FILTER_DIR, "coverage.matrix.filter1.txt")
@@ -1322,7 +1455,7 @@ rule extract_geno_calling_features1:
     script:
         "scripts/extract_geno_calling_features1.py"
 
-# XXX Set num_cores to something.
+
 rule calc_neighbor_scores1:
     input:
         opj(FILTER_DIR, "ref_count.features.txt"),
@@ -1428,7 +1561,6 @@ rule list_sites_with_mixed_genotypes:
         "scripts/list_sites_with_mixed_genotypes.py"
 
 
-# XXX test with filter conditions == None
 rule filter_sites3:
     input:
         opj(FILTER_DIR, "coverage.matrix.filter2.txt"),
@@ -1541,9 +1673,9 @@ rule run_beast2:
     input:
         "output/mutations.fa"
     output:
-        directory("output/beast2"),
+        directory("output/phylogeny"),
     log:
-        "output/beast2.log"
+        "logs/phylogeny.log"
     params:
         RSCRIPT=RSCRIPT,
         beast2_path=BEAST2_PATH,
@@ -1563,3 +1695,6 @@ rule run_beast2:
             --sample_interval {params.sample_interval} \
             --rng_seed {params.rng_seed} >& {log}
         """
+
+
+
