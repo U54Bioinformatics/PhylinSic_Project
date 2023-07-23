@@ -15,8 +15,11 @@ smooth, impute, and call the genotypes for scRNA-Seq data as described
 in the paper.
 [smoothing](smoothing.R) code
 
-Table of Contents:
+This README contains sections:
 - [Installation](#Installation)
+- [Quick Start](#Start)
+- [Pipeline](#Pipeline)
+- [FAQ](#FAQ)
 
 
 # <A NAME="Installation">Installation</A>
@@ -122,7 +125,7 @@ versions of openjdk.  To work aroud this, I use picard from conda and
 configure `gatk` to use an external installation.
 
 
-# Running the pipeline
+# <A HREF="Start">Quick Start</A>
 
 1.  Set up the input files.
 
@@ -246,7 +249,7 @@ the raw output from the BEAST2 analysis is also available.
 
 
 
-# Pipeline
+# <A HREF="Pipeline">Pipeline</A>
 
 The pipeline is broken down into nine tasks.
 
@@ -439,7 +442,7 @@ run_beast2                       Run BEAST2 to generate the phylogenies.
 
 
 
-# FAQ
+# <A HREF="FAQ">FAQ</A>
 
 - What kind of computer do I need to run this pipeline?
 
