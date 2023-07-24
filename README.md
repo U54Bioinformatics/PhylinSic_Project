@@ -25,7 +25,7 @@ This README contains the following sections:
 # <A NAME="Installation">Installation</A>
 
 This pipeline requires the following software to be installed on your
-system.  I have included instructions for installing these with conda.
+system.  We have included instructions for installing these with conda.
 However, everyone's environment is a little different, and software
 changes over time, so you may need to do things differently to get
 things to work.
@@ -448,6 +448,19 @@ and disk is needed to process the alignments for all the cells.
 
 How much of everything you need depends on the size of your data set
 and how long you are willing to wait for the computation to finish.
-But if I had to set a minimum lower bound, let's say you'll need a
-LINUX server with 16 cores, 32 Gb RAM, and 1 Tb hard drive.  But I
-would recommend 92 cores, 64 Gb RAM, and 4 Tb hard drive.
+But if we had to set a minimum lower bound, let's say you'll need a
+LINUX server with 16 cores, 32 Gb RAM, and 1 Tb hard drive.  But we
+would recommend 92 cores, 64 Gb RAM, and 4 Tb hard drive; or running
+on a cluster.
+
+
+- How long does this pipeline take to run?
+
+This depends on the size of your data and compute environment.  But
+roughly, you should expect that it will take a few days, or up to
+weeks if you have a large data set, lenient filters, and/or choose
+extensive sampling.
+
+We recommend starting with a small data set (e.g. only 1000 cells in
+`cells.txt`) and then scaling up the analysis as you get more
+comfortable with it.
