@@ -135,9 +135,9 @@ high-quality cells in the data set (e.g. preprocess the data with
 CellRanger, filter for cells based on read depth, mitochondria,
 droplet analysis, etc.)  The names of the cells should be in the
 format \<sample\>_\<barcode\>, where the \<sample\> should match the
-name of a sample analyze by CellRanger.  The "Outgroup" and "Category"
-columns are optional (you may leave them out of the file), but can
-provide extra information that is used when interpreting the
+name of a sample processed by CellRanger.  The "Outgroup" and
+"Category" columns are optional (you may leave them out of the file),
+but can provide extra information that is used when interpreting the
 phylogenies.  "Outgroup" is used to indicate (with "yes" or "no")
 which cells comprise the outgroup (e.g. the non-cancer cells in a
 tumor).  "Category" can be filled with some grouping of cells
@@ -147,10 +147,11 @@ only used for plotting.  An example file can be found
 
 The `cellranger` directory contains the output from the CellRanger
 preprocessing.  Each subdirectory of `cellranger` should contain the
-data for a sample.  Although CellRanger creates many files, the only
-ones we are about are the BAM files `possorted_genome_bam.bam` that
-contain the alignments for samples.  All the other files are ignored.
-Please do not move the BAM files, or we won't be able to find them.
+data for a sample.  The name of that subdirectory should be the sample
+name.  Although CellRanger creates many files, the only ones we are
+about are the BAM files `possorted_genome_bam.bam` that contain the
+alignments for samples.  All other files are ignored.  Please do not
+move the BAM files, or we won't be able to find them.
 
 `genome.fa` is the FASTA-formatted file containing the reference
 genome that the BAM files were aligned to.  This needs to be the same
@@ -167,7 +168,7 @@ Mills_and_1000G_gold_standard.indels.b37.vcf.gz
 dbsnp_138.b37.vcf.gz
 ```
 
-You can get these files from the Broad online.  Make sure they are
+You can download these files from the Broad.  Make sure they are
 compressed and indexed with bgzip and tabix.
 
 
@@ -277,8 +278,8 @@ demux_one_batch                  Demultiplex alignments into single cells.
 
 *3.  Preprocess the single cell files.*
 
-These rules work on directories (batches) of single cell
-files.
+These rules work on directories (batches) of single cell files.  They
+implement a GATK-based pipeline for preprocessing RNA-Seq data.
 
 ```
 Rules:
@@ -293,13 +294,14 @@ recalibrate_base_quality_score
 
 *4.  Merge single cells to a pseudobulk sample.*
 
-The BAM files for each batch of cells is merged into one BAM file.
-The BAM files for each sample is merged into a BAM file.  All BAM
-files is merged into a pseudobulk BAM file.  The merging is done
-piecemeal so that we do not run into problems when trying to merge too
-many files at once.  After each merge, we need to remove duplicate
-lines from the BAM headers, otherwise they may get too big (>2^31
-bytes).
+The BAM files for each batch of cells are merged into one BAM file for
+the batch.  Then, those BAM files are merged into a BAM file for each
+sample.  Finally, all the sample BAM files are merged into a single
+pseudobulk BAM file.  The merging is done piecemeal to work around
+technical limitations that arise when merging too many files at once.
+After each merge, we remove duplicate lines from the BAM headers,
+otherwise the length of the header may exceed the BAM file header size
+limit (>2^31 bytes).
 
 ```
 Rules:
@@ -407,7 +409,7 @@ whole file, simplying the pipeline.
 
 ```
 Rules:
-prepare_geno_calling_files2
+prepare_geno_calling_files2      These rules are analogs of those above.
 select_geno_calling_features2
 extract_geno_calling_features2
 calc_neighbor_scores2
@@ -424,12 +426,15 @@ Use the called/imputed genotypes and estimate a phylogeny.
 Rules:
 make_fasta_file                  Make a FASTA file with the genotypes.
 run_beast2                       Run BEAST2 to generate the phylogenies.
+summarize_beast2                 Generate summary statistics on phylogenies.
+combine_trees                    Merge the trees from multiple BEAST2 runs.
+make_mcc_tree                    Estimate a max clade credibility tree.
+analyze_mcc_tree                 Generate summary statistics on MCC tree.
+plot_model_estimates             Plot some summary statistics on sampling.
+plot_mcc_tree                    Plot the max clade credibility tree.
+plot_densitree                   Plot a densitree.
+
 ```
-
-
-
-
-
 
 
 # <A NAME="FAQ">FAQ</A>
