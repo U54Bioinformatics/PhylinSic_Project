@@ -22,8 +22,6 @@ args <- parser$parse_args()
 FASTA.FILE <- args$input_file
 OUT.DIR <- args$output_dir
 
-# XXX implement no BEAST2.PATH
-#BEAST2.PATH <- snakemake@params$beast2_path
 BEAST2.DIR <- args$beast2_dir
 BEAST.INFILE <- file.path(OUT.DIR, "beast2.infile.txt")
 BEAST.OUTFILE <- file.path(OUT.DIR, "beast2.outfile.txt")
@@ -95,7 +93,7 @@ print(sprintf("Fitting tree over %s iterations.", x))
 
 # Run BEAST.
 launcher.path <- sprintf("%s/lib/launcher.jar", BEAST2.DIR)
-# XXX make sure launcher.path exists
+if(!file.exists(launcher.path)) stop("no launcher.jar")
 
 start.time <- Sys.time()
 beast.model <- run.beast(FASTA.FILE, SITE.MODEL=SITE.MODEL,
