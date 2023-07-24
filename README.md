@@ -6,16 +6,16 @@ Phylogenetic inference from single-cell RNA-seq data.
 bioRxiv 2022.09.27.509725.  doi:
 https://doi.org/10.1101/2022.09.27.509725
 
-There is a Snakemake pipeline that takes 10X Genomics Chromium single
-cell RNA-Seq data processed with CellRanger and generates a
-phylogenetic tree.
+The pipeline is implemented with Snakemake and takes 10X Genomics
+Chromium single cell RNA-Seq data processed with CellRanger and
+generates a phylogenetic tree.
 
-If you have your own pipelines already, we also provide just the R
-functions that will smooth, impute, and call the genotypes for
-scRNA-Seq data as described in the paper.  You can download the
-[smoothing.R](smoothing.R) file.
+If you would like to do your own processing, we also provide just the
+R functions that will smooth, impute, and call the genotypes for
+scRNA-Seq data as described in the paper.  You can get that code by
+downloading the [smoothing.R](smoothing.R) file.
 
-This README contains sections:
+This README contains the following sections:
 - [Installation](#Installation)
 - [Quick Start](#Start)
 - [Pipeline](#Pipeline)
@@ -27,7 +27,8 @@ This README contains sections:
 This pipeline requires the following software to be installed on your
 system.  I have included instructions for installing these with conda.
 However, everyone's environment is a little different, and software
-changes over time, so you may need to do things differently.
+changes over time, so you may need to do things differently to get
+things to work.
 
 * [Snakemake](https://snakemake.readthedocs.io/en/stable/)
 
@@ -62,7 +63,8 @@ conda install -c bioconda beast2
 ```
 
 *Note*: Using Conda, I ran into an incompatibility between Java and R
-that I could not resolve.  The rJava installed by Conda did not work.
+that I could not resolve.  First, the rJava installed by Conda was not
+linked properly.
 
 ```
 > library(rJava)
@@ -87,9 +89,9 @@ instead.  If you run into similar problems, there are instructions in
 the Snakefile that describe how to do this.
 
 *Another issue*: the picard and gatk4 packages in Conda require
-different versions of openjdk.  When installing gatk4, conda
-downgraded openjdk, which broke picard.  To work aroud this, I used
-picard from conda and installed GATK4 outside conda (and configured
+different versions of openjdk.  When I installed gatk4, conda
+downgraded openjdk, which broke picard.  To work around this, I used
+picard from conda and installed Java+GATK4 manually (and configured
 the Snakefile accordingly).
 
 
@@ -126,13 +128,22 @@ You should create a local directory and set it up like:
 
 `Snakefile` is downloaded from this repository.
 
-`cells.txt` is a text file where each line gives the name of a cell to
-be analyzed.  This should include only the high-quality cells in the
-data set (e.g. preprocess the data with CellRanger, filter for cells
-based on read depth, mitochondria, droplet analysis, etc.)  The names
-of the cells should be in the format <sample>_<barcode>, where the
-<sample> should match the name of a sample analyze by CellRanger.  An
-example file can be found [here](cells.txt).
+`cells.txt` is a tab-delimited text file.  The first row should
+contain headers "Cell", "Outgroup", and "Category".  Each line gives
+the name of a cell to be analyzed.  This should include only the
+high-quality cells in the data set (e.g. preprocess the data with
+CellRanger, filter for cells based on read depth, mitochondria,
+droplet analysis, etc.)  The names of the cells should be in the
+format \<sample\>_\<barcode\>, where the \<sample\> should match the
+name of a sample analyze by CellRanger.  The "Outgroup" and "Category"
+columns are optional (you may leave them out of the file), but can
+provide extra information that is used when interpreting the
+phylogenies.  "Outgroup" is used to indicate (with "yes" or "no")
+which cells comprise the outgroup (e.g. the non-cancer cells in a
+tumor).  "Category" can be filled with some grouping of cells
+(e.g. the cell type, which tumor the cells came from, etc.) and is
+only used for plotting.  An example file can be found
+[here](cells.txt).
 
 The `cellranger` directory contains the output from the CellRanger
 preprocessing.  Each subdirectory of `cellranger` should contain the
