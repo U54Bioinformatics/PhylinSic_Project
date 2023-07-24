@@ -50,31 +50,32 @@ GATK = "singularity exec /data/genomidata/images/gatk4.210610.sif gatk"
 # installation, or install it yourself separately.
 
 RSCRIPT = "Rscript"
+JAVA = "java"
 
-# This should point to the "launcher.jar" file that is installed with
-# BEAST2, e.g. 
-#   /usr/local/beast/lib/launcher.jar.
+# This should point to the directory that beast is installed in, e.g.
+#   /usr/local/beast
 #
 # If set to None, I will try to find it myself.
+BEAST2_DIR = None
 
-BEAST2_PATH = None
+# This should point to the "logcombiner" program that is installed with
+# BEAST2.
+LOGCOMBINER = "logcombiner"
 
 
 
-# XXX
-x = os.getcwd()
-RSCRIPT = (
+
+
+
+# XXX MY STUFF
+
+SING = (
     "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 singularity run "
-    "--bind %s "
-    "/data/genomidata/images/babette.230713.sif Rscript" % x
-    )
-BEAST2_PATH = "/usr/local/beast/lib/launcher.jar"
-#HOME = os.path.expanduser("~")
-#BEAST2_PATH = os.path.join(
-#    HOME, "mambaforge/envs/snakemake/share/beast2-2.6.3-2/lib/launcher.jar")
-
-
-# XXX test with filter conditions == None
+    "--bind . /data/genomidata/images/babette.230713.sif")
+RSCRIPT = "%s Rscript" % SING
+JAVA = "%s /usr/bin/java" % SING
+BEAST2_DIR = "/usr/local/beast"
+LOGCOMBINER = "%s /usr/local/beast/bin/logcombiner" % SING
 
 
 
@@ -216,7 +217,18 @@ BEAST2_TREE_PRIOR = "yule"
 # How many iterations to run the analysis.  For our data, we run
 # ~100 million iterations or so for the final analysis, and
 # shorter (e.g. 1 million) when testing.
-BEAST2_ITERATIONS = 100000000
+#BEAST2_ITERATIONS = 100000000
+BEAST2_ITERATIONS = 100000
+
+
+# How many iterations to discard for burn-in.
+BEAST2_BURNIN = int(BEAST2_ITERATIONS*0.50)
+
+
+assert BEAST2_BURNIN < BEAST2_ITERATIONS, \
+    "Cannot discard all samples as burnin (%d)." % BEAST2_BURNIN
+
+
 
 # How frequently (in number of iterations) to collect statistics
 # on the sampling.
@@ -451,6 +463,11 @@ CELLS_PER_BATCH_GENOTYPE_CALLING = 512
 #   # 9.  Make the phylogeny.
 #   make_fasta_file.py
 #   run_beast2.R
+#   summarize_beast2.R
+#   analyze_mcc_tree.R
+#   plot_model_estimates.R
+#   plot_tree.R
+#   plot_densitree.R
 
 
 
@@ -474,6 +491,7 @@ CALL_DIR = "output/05_call"
 MATRIX_DIR = "output/06_matrix"
 FILTER_DIR = "output/07_filter"
 GENOTYPE_DIR = "output/08_genotype"
+PHYLO_DIR = "output/phylogeny"
 
 GENOME_LOG_DIR = "logs/01_genome"
 DEMUX_LOG_DIR = "logs/02_demux"
@@ -481,18 +499,42 @@ PREPROC_LOG_DIR = "logs/03_preproc"
 PBULK_LOG_DIR = "logs/04_pbulk"
 CALL_LOG_DIR = "logs/05_call"
 MATRIX_LOG_DIR = "logs/06_matrix"
+PHYLO_LOG_DIR = "logs/phylogeny"
 
 
 # Create the directories for the files we need to create.
 x = ["output", GENOME_DIR, DEMUX_DIR, PREPROC_DIR, PBULK_DIR, CALL_DIR, 
-     MATRIX_DIR, FILTER_DIR, GENOTYPE_DIR, 
+     MATRIX_DIR, FILTER_DIR, GENOTYPE_DIR, PHYLO_DIR,
      "logs", GENOME_LOG_DIR, DEMUX_LOG_DIR, PREPROC_LOG_DIR, PBULK_LOG_DIR,
-     CALL_LOG_DIR, MATRIX_LOG_DIR,
+     CALL_LOG_DIR, MATRIX_LOG_DIR, PHYLO_LOG_DIR,
      "temp",
      ]
 for x in x:
     if not os.path.exists(x):
         os.mkdir(x)
+
+
+
+
+# Set default parameters, if not provided.
+
+if BEAST2_DIR is None:
+    # See if I can find the directory where BEAST2 is installed.
+    # beast/bin/
+    #   beast
+    #   logcombiner
+    #   treeannotator
+    #   ...
+    HOME = os.path.expanduser("~")
+    BEAST2_DIR = os.path.join(
+        HOME, "mambaforge/envs/snakemake/share/beast2-2.6.3-2")
+    assert os.path.exists(BEAST2_DIR), "I could not find BEAST2_DIR"
+
+if LOGCOMBINER is None:
+    LOGCOMBINER = os.path.join(BEAST2_DIR, "bin", "logcombiner")
+    assert os.path.exists(LOGCOMBINER), "I could not find LOGCOMBINER"
+   
+
 
 
 def read_cell_file(filename):
@@ -503,11 +545,19 @@ def read_cell_file(filename):
     Return a dictionary of sample -> set of cells
 
     """
-    x = open(filename).read()
-    x = x.split()
-    x = [x.strip() for x in x]
-    x = [x for x in x if x]
-    cells = set(x)
+    i_cell = None
+    cells = set()
+    for line in open(filename):
+        cols = line.rstrip("\r\n").split("\t")
+        if i_cell is None:
+            assert "Cell" in cols, \
+                'File %s is missing a column with header "Cell".' % filename
+            i_cell = cols.index("Cell")
+            continue
+        x = cols[i_cell].strip()
+        if not x:
+            continue
+        cells.add(x)
 
     sample2cells = {}
     for cell in cells:
@@ -600,7 +650,13 @@ GENOTYPE_CALLING_BATCHES = ["%0*d" % (nd, i) for i in range(n)]
 
 rule all:
     input:
-        "output/phylogeny"
+        opj(PHYLO_DIR, "max_clade_cred.nexus.txt"),
+        opj(PHYLO_DIR, "max_clade_cred.newick.txt"),
+        opj(PHYLO_DIR, "max_clade_cred.metadata.txt"),
+        opj(PHYLO_DIR, "summary.txt"),
+        opj(PHYLO_DIR, "posterior.pdf"),
+        opj(PHYLO_DIR, "tree.mcc.pdf"),
+        opj(PHYLO_DIR, "densitree.pdf"),
 
 
 rule copy_ref_genome:
@@ -1664,21 +1720,23 @@ rule make_fasta_file:
     input:
         opj(GENOTYPE_DIR, "genotypes.txt"),
     output:
-        "output/mutations.fa",
+        opj(PHYLO_DIR, "mutations.fa")
     script:
         "scripts/make_fasta_file.py"
 
 
 rule run_beast2:
     input:
-        "output/mutations.fa"
+        opj(PHYLO_DIR, "mutations.fa")
     output:
-        directory("output/phylogeny"),
+        directory("output/beast2"),
+        "output/beast2/beast2.model.RDS",
+        "output/beast2/tree.log",
     log:
-        "logs/phylogeny.log"
+        opj(PHYLO_LOG_DIR, "beast2.log")
     params:
         RSCRIPT=RSCRIPT,
-        beast2_path=BEAST2_PATH,
+        beast2_dir=BEAST2_DIR,
         site_model=BEAST2_SITE_MODEL,
         clock_model=BEAST2_CLOCK_MODEL,
         tree_prior=BEAST2_TREE_PRIOR,
@@ -1686,8 +1744,8 @@ rule run_beast2:
         sample_interval=BEAST2_SAMPLE_INTERVAL,
         rng_seed=BEAST2_RNG_SEED,
     shell:
-        """{RSCRIPT} scripts/run_beast2.R -i {input} -o {output} \
-            --beast2_path {params.beast2_path} \
+        """{RSCRIPT} scripts/run_beast2.R -i {input} -o {output[0]} \
+            --beast2_dir {params.beast2_dir} \
             --site_model {params.site_model} \
             --clock_model {params.clock_model} \
             --tree_prior {params.tree_prior} \
@@ -1697,4 +1755,210 @@ rule run_beast2:
         """
 
 
+rule summarize_beast2:
+    input:
+        "output/beast2/beast2.model.RDS",
+    output:
+        opj(PHYLO_DIR, "summary.txt"),
+        opj(PHYLO_DIR, "summary.ess.txt"),
+    log:
+        opj(PHYLO_LOG_DIR, "summary.log")
+    params:
+        RSCRIPT=RSCRIPT,
+        sample_interval=BEAST2_SAMPLE_INTERVAL,
+        burnin=BEAST2_BURNIN,
+    shell:
+        """{params.RSCRIPT} scripts/summarize_beast2.R \
+            {input[0]} {params.sample_interval} {params.burnin} \
+            {output[0]} {output[1]} \
+            >& {log}
+        """
 
+
+perc_burnin = int(round(float(BEAST2_BURNIN) / BEAST2_ITERATIONS * 100))
+assert perc_burnin > 0 and perc_burnin < 100
+
+rule combine_trees:
+    input:
+        "output/beast2/tree.log",
+    output:
+        opj(PHYLO_DIR, "beast2.trees.nexus.txt")
+    log:
+        opj(PHYLO_LOG_DIR, "beast2.trees.nexus.log")
+    params:
+        LOGCOMBINER=LOGCOMBINER,
+        perc_burnin=perc_burnin,
+    shell:
+        """
+        {params.LOGCOMBINER} -b {params.perc_burnin} \
+            -log output/beast2/tree.log -o {output} >& {log}
+        """
+        
+
+rule make_mcc_tree:
+    input:
+        opj(PHYLO_DIR, "beast2.trees.nexus.txt")
+    output:
+        opj(PHYLO_DIR, "max_clade_cred.nexus.txt")
+    log:
+        opj(PHYLO_LOG_DIR, "max_clade_cred.nexus.log")
+    params:
+        JAVA=JAVA,
+        BEAST2_DIR=BEAST2_DIR,
+    shell:
+        # -burnin 0 because burning already removed by tree combiner
+        """
+        {params.JAVA} -Xms1g -Xmx32g \
+            -Dlauncher.wait.for.exit=true \
+            -Duser.language=en \
+            -Djava.library.path={params.BEAST2_DIR}/lib \
+            -cp {params.BEAST2_DIR}/lib/launcher.jar \
+            beast.app.treeannotator.TreeAnnotatorLauncher \
+            -burnin 0 \
+            -heights mean \
+            -lowMem \
+            {input} {output} >& {log}
+        """
+
+
+rule analyze_mcc_tree:
+    input:
+        opj(PHYLO_DIR, "max_clade_cred.nexus.txt"),
+        opj(DEMUX_DIR, "cells.txt"),
+    output:
+        opj(PHYLO_DIR, "max_clade_cred.newick.txt"),
+        opj(PHYLO_DIR, "max_clade_cred.rerooted.newick.txt"),
+        opj(PHYLO_DIR, "max_clade_cred.dist.txt"),
+        opj(PHYLO_DIR, "max_clade_cred.metadata.txt"),
+        opj(PHYLO_DIR, "max_clade_cred.rerooted.metadata.txt"),
+    log:
+        opj(PHYLO_LOG_DIR, "max_clade_cred.analysis.log")
+    params:
+        RSCRIPT=RSCRIPT,
+    shell:
+        """{params.RSCRIPT} scripts/analyze_mcc_tree.R \
+            {input[0]} {input[1]} \
+            {output[0]} {output[1]} {output[2]} {output[3]} {output[4]}
+            >& {log}
+        """
+
+
+def calc_model_indexes(
+    min_perc, max_perc, total_iterations, sample_interval):
+    # Return a tuple of (i_min_tree, i_max_tree).  i_min_tree and
+    # i_max_tree are indexes into model$tree or model$estimates.
+    # Indexes are 1-based and inclusive indexes into the <model>$trees
+    # variable.
+    import math
+    
+    assert min_perc >= 0 and min_perc <= 100
+    assert max_perc > 1 and max_perc <= 100
+    assert min_perc < max_perc
+
+    # <model>$trees goes from 1:(num_samples+1) (1-based, inclusive,
+    # like R).  trees[1] is sample 0.
+    #num_samples = total_iterations / sample_interval
+    #i_min = 1
+    #i_max = num_samples + 1
+    
+    # Calculate the ideal starting iteration.
+    x1 = total_iterations * min_perc / 100.0
+    x2 = total_iterations * max_perc / 100.0
+    # Convert to the number of sample intervals.
+    x1 = int(math.floor(x1 / sample_interval))
+    x2 = int(math.floor(x2 / sample_interval))
+    #if x2-x1 < min_samples:
+    #    return None
+    # Convert to 1-based, inclusive indexes.  Also take into account
+    # that the first sample is iteration 0.
+    x1 = x1 + 1
+    x2 = x2 + 1
+    return x1, x2
+
+zoom_min, zoom_max = 90, 100  # how much to zoom in.
+x = calc_model_indexes(
+    zoom_min, zoom_max, BEAST2_ITERATIONS, BEAST2_SAMPLE_INTERVAL)
+i_min, i_max = x
+assert i_max-i_min+1 >= 2, "Not enough samples for parameter plots"
+
+
+rule plot_model_estimates:
+    input:
+        "output/beast2/beast2.model.RDS"
+    output:
+        opj(PHYLO_DIR, "posterior.pdf"),
+        opj(PHYLO_DIR, "posterior_%03d_%03d.pdf" % (zoom_min, zoom_max)),
+        opj(PHYLO_DIR, "tree_height.pdf"),
+        opj(PHYLO_DIR, "yule_model.pdf"),      # for yule model only
+    log:
+        opj(PHYLO_LOG_DIR, "plot_model_estimates.log")
+    params:
+        RSCRIPT=RSCRIPT,
+        BEAST2_BURNIN=BEAST2_BURNIN,
+        i_zoom_min=i_min,
+        i_zoom_max=i_max,
+    shell:
+        """{params.RSCRIPT} scripts/plot_model_estimates.R \
+            {input[0]} {params.i_zoom_min} {params.i_zoom_max} \
+            {output[0]} {output[1]} {output[2]} {output[3]} \
+            {params.BEAST2_BURNIN} \
+            >& {log}
+        """
+
+
+rule plot_mcc_tree:
+    input:
+        opj(PHYLO_DIR, "max_clade_cred.newick.txt"),
+        opj(DEMUX_DIR, "cells.txt"),
+    output:
+        opj(PHYLO_DIR, "tree.mcc.pdf"),
+    log:
+        opj(PHYLO_LOG_DIR, "tree.mcc.log")
+    params:
+        RSCRIPT=RSCRIPT,
+        color_tree_by_category=True,
+        tree_height=8,
+        tree_width=6,
+        tree_layout="rectangular",
+    shell:
+        """{params.RSCRIPT} scripts/plot_tree.R \
+            {input[0]} {input[1]} \
+            {params.color_tree_by_category} \
+            {params.tree_height} {params.tree_width} \
+            {params.tree_layout} {output[0]} \
+            >& {log}
+        """
+
+
+perc_min, perc_max = 90, 100  # how much to zoom in.
+x = calc_model_indexes(
+    zoom_min, zoom_max, BEAST2_ITERATIONS, BEAST2_SAMPLE_INTERVAL)
+i_min, i_max = x
+
+MAX_SAMPLES = 100   # Don't plot too many trees, or will be messy.
+if i_max-i_min+1 > MAX_SAMPLES:
+    i_min = max(i_max-MAX_SAMPLES, 0)
+ 
+
+rule plot_densitree:
+    input:
+        "output/beast2/beast2.model.RDS"
+    output:
+        opj(PHYLO_DIR, "densitree.pdf"),
+    log:
+        opj(PHYLO_LOG_DIR, "densitree.log")
+    params:
+        RSCRIPT=RSCRIPT,
+        i_min=i_min,
+        i_max=i_max,
+        tree_height=8,
+        tree_width=6,
+        tree_layout="rectangular",
+    shell:
+        """{params.RSCRIPT} scripts/plot_densitree.R \
+            {input[0]} \
+            {params.i_min} {params.i_max} \
+            {params.tree_height} {params.tree_width} \
+            {params.tree_layout} {output[0]} \
+            >& {log}
+        """

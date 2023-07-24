@@ -5,13 +5,22 @@
 
 
 def read_cell_file(filename):
-    # Return a set of cells.  The file should be cleaned up.  One cell
-    # per line.  Each in format:
-    # <sample>_<barcode>-<gem_well>
-    x = open(filename).readlines()
-    x = [x.strip() for x in x]
-    x = [x for x in x if x]
-    return set(x)
+    # Return a set of cells.  The file should be cleaned up.  Cells in
+    # format: <sample>_<barcode>-<gem_well>
+    i_cell = None
+    cells = set()
+    for line in open(filename):
+        cols = line.rstrip("\r\n").split("\t")
+        if i_cell is None:
+            assert "Cell" in cols, \
+                'File %s is missing a column with header "Cell".' % filename
+            i_cell = cols.index("Cell")
+            continue
+        x = cols[i_cell].strip()
+        if not x:
+            continue
+        cells.add(x)
+    return cells
 
 
 def get_barcodes_from_sample(cells, sample):

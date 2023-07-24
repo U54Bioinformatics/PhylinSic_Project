@@ -6,7 +6,7 @@ parser$add_argument("--input_file", "-i",
   help="File of sequences to model in FASTA format.")
 parser$add_argument("--output_dir", "-o", help="Output directory")
 
-parser$add_argument("--beast2_path")
+parser$add_argument("--beast2_dir")
 parser$add_argument("--site_model")
 parser$add_argument("--clock_model")
 parser$add_argument("--tree_prior")
@@ -24,7 +24,7 @@ OUT.DIR <- args$output_dir
 
 # XXX implement no BEAST2.PATH
 #BEAST2.PATH <- snakemake@params$beast2_path
-BEAST2.PATH <- args$beast2_path
+BEAST2.DIR <- args$beast2_dir
 BEAST.INFILE <- file.path(OUT.DIR, "beast2.infile.txt")
 BEAST.OUTFILE <- file.path(OUT.DIR, "beast2.outfile.txt")
 BEAST.MODEL.FILE <- file.path(OUT.DIR, "beast2.model.RDS")
@@ -94,11 +94,14 @@ print(sprintf("Fitting tree over %s iterations.", x))
 
 
 # Run BEAST.
+launcher.path <- sprintf("%s/lib/launcher.jar", BEAST2.DIR)
+# XXX make sure launcher.path exists
+
 start.time <- Sys.time()
 beast.model <- run.beast(FASTA.FILE, SITE.MODEL=SITE.MODEL,
   CLOCK.MODEL=CLOCK.MODEL, TREE.PRIOR=TREE.PRIOR, num.iter=NUM.ITER,
   sample.interval=SAMPLE.INTERVAL, rng.seed=RNG.SEED,
-  beast2.path=BEAST2.PATH,
+  beast2.path=launcher.path,
   beast.infile=BEAST.INFILE, beast.outfile=BEAST.OUTFILE,
   tree.log=TREE.LOG, trace.log=TRACE.LOG, screen.log=SCREEN.LOG)
 end.time <- Sys.time()

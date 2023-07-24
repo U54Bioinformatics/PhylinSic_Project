@@ -36,7 +36,7 @@ changes over time, so you may need to do things differently.
 * GATK4
 * Varscan
 * Python3 + numpy + scipy
-* R + babette
+* R + babette + other libraries
 * BEAST2
 
 
@@ -50,6 +50,8 @@ conda install -c anaconda numpy
 conda install -c anaconda scipy
 
 conda install -c bioconda r-argparse
+conda install -c r r-rcolorbrewer
+conda install -c conda-forge r-ggplot2
 conda install -c bioconda bioconductor-ggtree
 conda install -c conda-forge r-phangorn
 conda install -c conda-forge r-treetools
@@ -184,11 +186,11 @@ run into bugs in the pipeline, please file an
 [issue](https://github.com/U54Bioinformatics/PhylinSic_Project/issues).
 
 
-4.  Get the phylogeny.
+4.  Get the results.
 
-This pipeline will generate a phylogenetic tree of the cells.
-
-XXX implement phylogeny stuff
+This pipeline will generate a phylogenetic tree of the cells.  The raw
+output from the BEAST2 modeling is available in the `output/beast2/`
+directory, and some processed results are available in `output/phylogeny/`.
 
 ```
 <your directory>/
@@ -201,16 +203,27 @@ XXX implement phylogeny stuff
             trace.log
             tree.log
         phylogeny/
-            beast2.trees.nexus.txt
-            max_clade_cred.nexus.txt
-            max_clade_cred.newick.txt
-            max_clade_cred.dist.txt
-            max_clade_cred.metadata.txt
+            mutations.fa              Alignments used for modeling.
+
+            summary.txt               Summary statistics.
+            summary.ess.txt           Effective sample size estimates.
+            posterior.pdf             Plot of posterior probabilities.
+            posterior_090_100.pdf     Posterior of last 10% of samples.
+            tree_height.pdf           Plot of tree height estimates.
+            yule_model.pdf            Only if "yule" tree prior was selected.
+
+            beast2.trees.nexus.txt         Estimated trees across sampling.
+            max_clade_cred.nexus.txt       Max clade credibility tree, NEXUS.
+            max_clade_cred.newick.txt      Max clade credibility tree, Newick.
+            max_clade_cred.dist.txt        Pairwise distances.
+            max_clade_cred.metadata.txt    Metadata describing tree.
+            max_clade_cred.rerooted.newick.txt     Rerooted, if Outgroup given.
+            max_clade_cred.rerooted.metadata.txt
+
+            tree.mcc.pdf              Dendrogram of max clade credibility tree.
+            densitree.pdf             Dendrogram showing sampled trees.
 
 ```
-
-If you are interested in the raw data from the phylogenetic inference,
-the raw output from the BEAST2 analysis is also available.
 
 
 
@@ -420,7 +433,5 @@ and disk is needed to process the alignments for all the cells.
 How much of everything you need depends on the size of your data set
 and how long you are willing to wait for the computation to finish.
 But if I had to set a minimum lower bound, let's say you'll need a
-server with 16 cores, 32 Gb RAM, and 1 Tb hard drive.  And LINUX.
-
-
-
+LINUX server with 16 cores, 32 Gb RAM, and 1 Tb hard drive.  But I
+would recommend 92 cores, 64 Gb RAM, and 4 Tb hard drive.

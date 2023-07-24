@@ -1,7 +1,6 @@
 # Functions:
 # hash_var
 # read_cell_file
-# clean_cell_file
 
 def hash_var(name, can_start_with_number=False):
     import re
@@ -16,9 +15,11 @@ def hash_var(name, can_start_with_number=False):
 
 
 def read_cell_file(cell_file, samples):
-    # Return a tuple of (<cells>, <used_samples>).  cells is a set of
-    # cells in format: <sample>_<barcode>, and may be cleaned up
-    # versions of those found in the cell_file.
+    # Return a tuple of:
+    #   (<cells>, <cell2category>, <cell2outgroup>, <used_samples>).
+    # 
+    # cells is a set of cells in format: <sample>_<barcode>, and may
+    # be cleaned up versions of those found in the cell_file.
     #
     # <barcode> includes only the DNA bases, and will include the "-1"
     # GEM chip channel at the end.  If no GEM channel is given, will
@@ -40,15 +41,37 @@ def read_cell_file(cell_file, samples):
         sample2i[h3] = i
 
     # Read in each of the cells and clean up.
-    x = open(cell_file).read()
-    x = x.split()
-    x = [x.strip() for x in x]
-    x = [x for x in x if x]
-    cells = set(x)
-
+    cell2category = {}
+    cell2outgroup = {}
+    i_cell = None
+    i_category = None
+    i_outgroup = None
+    cells = set()
+    for line in open(cell_file):
+        cols = line.rstrip("\r\n").split("\t")
+        if i_cell is None:
+            assert "Cell" in cols, \
+                'File is missing a column with header "Cell".'
+            i_cell = cols.index("Cell")
+            if "Category" in cols:
+                i_category = cols.index("Category")
+            if "Outgroup" in cols:
+                i_outgroup = cols.index("Outgroup")
+            continue
+        cell = cols[i_cell].strip()
+        if not cell:
+            continue
+        cells.add(cell)
+        if i_category is not None:
+            cell2category[cell] = cols[i_category]
+        if i_outgroup is not None:
+            cell2outgroup[cell] = cols[i_outgroup]
+    
     # Check to make sure the format of good_cells look reasonable.
     DNA_BASES = set("ACGT")
     good_cells = set()
+    good_cell2category = {}
+    good_cell2outgroup = {}
     used_samples = set()
     for cell in cells:
         # If user accidentally added ".bam" to name of cell, remove
@@ -82,27 +105,11 @@ def read_cell_file(cell_file, samples):
         clean_cell = "%s_%s-%s" % (clean_sample, clean_barcode, gem_channel)
         good_cells.add(clean_cell)
         used_samples.add(clean_sample)
-    return good_cells, used_samples
-
-
-def clean_cell_file(infile, bam_files, outfile):
-    import os
-    
-    # Make sure sample names match.
-    # <sample>.bam
-    x = [os.path.split(x)[1] for x in bam_files]
-    x = [os.path.splitext(x)[0] for x in x]
-    sample_names = x
-
-    # data/cellranger.out/006_R_LUNG/outs/possorted_genome_bam.bam
-    good_cells, used_samples = read_cell_file(infile, sample_names)
-    assert good_cells, "No cells found: %s" % demux_file
-    assert used_samples, "No samples found: %s" % demux_file
-    # Write out the clean file.
-    x = ["%s\n" % x for x in sorted(good_cells)]
-    open(outfile, 'w').writelines(x)
-
-    return good_cells, used_samples
+        if cell in cell2category:
+            good_cell2category[clean_cell] = cell2category[cell]
+        if cell in cell2outgroup:
+            good_cell2outgroup[clean_cell] = cell2outgroup[cell]
+    return good_cells, good_cell2category, good_cell2outgroup, used_samples
 
 
 def main():
@@ -127,15 +134,23 @@ def main():
     x = [os.path.splitext(x)[0] for x in x]
     sample_names = x
 
-    good_cells, used_samples = read_cell_file(user_cell_file, sample_names)
+    x = read_cell_file(user_cell_file, sample_names)
+    good_cells, cell2category, cell2outgroup, used_samples = x
     assert good_cells, "No cells found: %s" % user_cell_file
     assert used_samples, "No samples found: %s" % user_cell_file
     
     # Write out the clean file.
-    x = ["%s\n" % x for x in sorted(good_cells)]
-    open(clean_cell_file, 'w').writelines(x)
+    handle = open(clean_cell_file, 'w')
+    header = "Cell", "Category", "Outgroup"
+    print("\t".join(header), file=handle)
+    for cell in sorted(good_cells):
+        category = cell2category.get(cell, "")
+        outgroup = cell2outgroup.get(cell, "")
+        x = cell, category, outgroup
+        assert len(x) == len(header)
+        print("\t".join(x), file=handle)
+    handle.close()
 
-    
     
 if __name__ == '__main__':
     main()
