@@ -10,10 +10,14 @@ The pipeline is implemented with Snakemake and takes 10X Genomics
 Chromium single cell RNA-Seq data processed with CellRanger and
 generates a phylogenetic tree.
 
-If you would like to do your own processing, we also provide just the
-R functions that will smooth, impute, and call the genotypes for
-scRNA-Seq data as described in the paper.  You can get that code by
-downloading the [smoothing.R](smoothing.R) file.
+If you have your own favorite approaches to variant calling or
+phylogenetic modeling, we also provide just the R functions that will
+smooth, impute, and call the genotypes for scRNA-Seq data as described
+in the paper.  You can get that code by downloading the
+[smoothing.R](smoothing.R) file.  This contains functions that can
+take matrices of reference and alternate read counts and produce the
+predicted genotypes (reference, alternate, or heterozygous) and their
+probabilities.
 
 This README contains the following sections:
 - [Installation](#Installation)

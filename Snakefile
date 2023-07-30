@@ -26,10 +26,8 @@ VERSION = 1
 
 SAMTOOLS = "samtools"
 PICARD = "picard"
-#GATK = "gatk"
+GATK = "gatk"
 VARSCAN = "varscan"
-
-GATK = "singularity exec /data/genomidata/images/gatk4.210610.sif gatk"
 
 # In the last step of the pipeline, we run phylogenetic inference
 # by calling BEAST2 (a Java program) from R using the babette
@@ -63,19 +61,6 @@ BEAST2_DIR = None
 LOGCOMBINER = "logcombiner"
 
 
-
-
-
-
-# XXX MY STUFF
-
-SING = (
-    "JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64 singularity run "
-    "--bind . /data/genomidata/images/babette.230713.sif")
-RSCRIPT = "%s Rscript" % SING
-JAVA = "%s /usr/bin/java" % SING
-BEAST2_DIR = "/usr/local/beast"
-LOGCOMBINER = "%s /usr/local/beast/bin/logcombiner" % SING
 
 
 
