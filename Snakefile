@@ -125,8 +125,6 @@ REMOVE_CLOSE_SITES = 5
 KEEP_SITES_WITH_MIXED_GENOTYPES = 20
 
 
-# XXX WHAT ABOUT IMPUTATION?
-
 # Select the top N sites, where the "top" site is the one seen in
 # the most cells (i.e. not dropout).
 KEEP_N_SITES_SEEN_IN_MOST_CELLS = 1000
@@ -569,10 +567,6 @@ x = [len(x) for x in sample2cells.values()]
 NUM_CELLS = sum(x)
 
 
-# XXX
-print("HERE 1", "DEBUG")
-PREPROCESSING_BATCHES = [
-    x for x in PREPROCESSING_BATCHES if x[0] == "015_R_LIVER"]
 
 
 
