@@ -323,7 +323,7 @@ CELLS_PER_BATCH_GENOTYPE_CALLING = 512
 #   # 5.  Call variants on the pseudobulk sample.
 #   05_call/interval_{interval}.intervals
 #   05_call/variants.{interval}.vcf
-#   05_call/variants.snp_only.{interval}.vcf
+#   05_call/variants.{interval}.snp_only.vcf
 #   05_call/variants.table.txt
 #   05_call/variants.metadata.txt
 #   05_call/variants.unfiltered.matrix.{batch}.txt
@@ -809,7 +809,7 @@ rule add_read_groups:
     log:
         opj(PREPROC_LOG_DIR, "{sample}.{batch}.cells.rg.log")
     params:
-        sample="{sample}",
+        #sample="{sample}",
         PICARD=PICARD,
     shell:
         """
@@ -822,7 +822,7 @@ rule add_read_groups:
                  ID=group \
                  LB=library \
                  PU=platform \
-                 SM={params.sample} \
+                 SM=pseudobulk \
                  PL=ILLUMINA \
                  VALIDATION_STRINGENCY=LENIENT >& {log}
         done

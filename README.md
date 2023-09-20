@@ -309,7 +309,7 @@ limit (>2^31 bytes).
 
 ```
 Rules:
-merge_cells_to_batch             Merge cells from each batch into a BAM file
+merge_cells_to_batch             Merge cells from each batch into a BAM file.
 clean_batch_header               Clean up the headers after merging.
 merge_batches_to_sample          Merge batches into one sample file.
 clean_sample_header              Clean up the headers after merging.

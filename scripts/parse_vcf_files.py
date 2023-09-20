@@ -20,7 +20,8 @@ def main():
         for line in open(vcf_file, encoding="utf-8"):
             if line.startswith("#CHROM"):
                 cols = line.rstrip("\r\n").split("\t")
-                assert len(cols) == 10
+                assert len(cols) == 10, "Unrecognized line: %s\n%s" % (
+                    line.strip(), vcf_file)
                 sample = cols[9]
                 continue
             if line.startswith("#"):
