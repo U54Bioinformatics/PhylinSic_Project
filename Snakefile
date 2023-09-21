@@ -13,7 +13,8 @@
 
 # Versions:
 #  1  230721  Initial release.
-VERSION = 1
+#  2  230921  Miscellaneous bug fixes, multiple batches.
+VERSION = 2
 
 
 
@@ -1368,6 +1369,8 @@ rule merge_coverage_by_batch:
     output:
         opj(MATRIX_DIR,
             "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.coverage.merged.txt")
+    log:
+        opj(MATRIX_LOG_DIR, "{sample}.{batch}.coverage.merged.log")
     params:
         MATRIX_DIR=MATRIX_DIR
     shell:
@@ -1375,13 +1378,12 @@ rule merge_coverage_by_batch:
         temp1={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.01.txt
         temp2={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.02.txt
         temp3={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.03.txt
-        for i in {input}/*.txt; do
-            cat {input}/*.txt > $temp1
-            grep -v "Chrom" $temp1 > $temp2
-            sort -T . --parallel 4 -k1,1 -k2,2n -k3,4 $temp2 > $temp3
-            cat <(head -1 $temp1) $temp3 > {output}
-        done
+        cat {input}/*.txt > $temp1
+        grep -v "Chrom" $temp1 > $temp2
+        sort -T . --parallel 4 -k1,1 -k2,2n -k3,4 $temp2 1> $temp3 2> {log}
+        cat <(head -1 $temp1) $temp3 > {output}
         """
+
 
 rule merge_coverage_batches:
     input:
