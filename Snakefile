@@ -1372,12 +1372,14 @@ rule merge_coverage_by_batch:
     log:
         opj(MATRIX_LOG_DIR, "{sample}.{batch}.coverage.merged.log")
     params:
-        MATRIX_DIR=MATRIX_DIR
+        MATRIX_DIR=MATRIX_DIR,
+        sample="{sample}",
+        batch="{batch}",
     shell:
         """
-        temp1={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.01.txt
-        temp2={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.02.txt
-        temp3={params.MATRIX_DIR}/{sample}.{batch}.coverage.merged.03.txt
+        temp1={params.MATRIX_DIR}/{params.sample}.{params.batch}.coverage.merged.01.txt
+        temp2={params.MATRIX_DIR}/{params.sample}.{params.batch}.coverage.merged.02.txt
+        temp3={params.MATRIX_DIR}/{params.sample}.{params.batch}.coverage.merged.03.txt
         cat {input}/*.txt > $temp1
         grep -v "Chrom" $temp1 > $temp2
         sort -T . --parallel 4 -k1,1 -k2,2n -k3,4 $temp2 1> $temp3 2> {log}

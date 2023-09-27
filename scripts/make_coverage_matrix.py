@@ -7,7 +7,7 @@ def iter_coord(filename):
     it = open(filename)
     x = next(it)
     header = x.rstrip("\r\n").split("\t")
-    assert len(header) == 7
+    assert len(header) == 7, f"Invalid header in file: {filename}"
     assert header == [
         "Chrom", "Pos", "Ref", "Alt", "Sample", "Coverage", "Cell"]
 
@@ -15,7 +15,7 @@ def iter_coord(filename):
     prev_coord = None
     for line in it:
         cols = line.rstrip("\r\n").split("\t")
-        assert len(cols) == 7
+        assert len(cols) == 7, f"Invalid line in file: {filename}\n{line}"
         coord = cols[:4]
         if coord != prev_coord:
             if lines:
