@@ -395,16 +395,28 @@ CELLS_PER_BATCH_GENOTYPE_CALLING = 512
 #   {sample}.{batch}.cells.rg_contig_index_snt_report.log
 #   {sample}.{batch}.cells.rg_contig_index_snt_recal.log
 #   # 4.  Merge single cells to a pseudobulk sample.
-#   {sample}.{batch}.pb.log
-#   {sample}.pb.log
-#   {sample}.pb.clean.log
+#   {sample}.{batch}.merged.log
+#   {sample}.{batch}.clean.log
+#   {sample}.merged.log
+#   {sample}.clean.log
 #   pseudobulk.merged.log
 #   pseudobulk.cleaned.log
 #   pseudobulk.sort.log
 #   pseudobulk.index.log
 #   # 5.  Call variants on the pseudobulk sample.
-#   interval_{interval}.intervals
-#   pseudobulk.clean.contig.{interval}.log
+#   variants.{interval}.log
+#   # 6.  Make a site x cell matrix containing the ref/alt read depth.
+#   {sample}.{batch}.raw.pileup.log
+#   {sample}.{batch}.coverage.merged.log
+#   # 9.  Make the phylogeny.
+#   beast2.log
+#   summary.log
+#   beast2.trees.nexus.log
+#   max_clade_cred.nexus.log
+#   max_clade_cred.analysis.log
+#   plot_model_estimates.log
+#   tree.mcc.log
+#   densitree.log
 # temp/
 # scripts/
 #   # 2.  Demultiplex CellRanger output into single cells.
@@ -487,7 +499,7 @@ PHYLO_LOG_DIR = "logs/phylogeny"
 
 
 # Create the directories for the files we need to create.
-x = ["output", GENOME_DIR, DEMUX_DIR, PREPROC_DIR, PBULK_DIR, CALL_DIR, 
+x = ["output", GENOME_DIR, DEMUX_DIR, PREPROC_DIR, PBULK_DIR, CALL_DIR,
      MATRIX_DIR, FILTER_DIR, GENOTYPE_DIR, PHYLO_DIR,
      "logs", GENOME_LOG_DIR, DEMUX_LOG_DIR, PREPROC_LOG_DIR, PBULK_LOG_DIR,
      CALL_LOG_DIR, MATRIX_LOG_DIR, PHYLO_LOG_DIR,
@@ -517,7 +529,7 @@ if BEAST2_DIR is None:
 if LOGCOMBINER is None:
     LOGCOMBINER = os.path.join(BEAST2_DIR, "bin", "logcombiner")
     assert os.path.exists(LOGCOMBINER), "I could not find LOGCOMBINER"
-   
+
 
 
 
@@ -566,7 +578,6 @@ for sample, cells in sample2cells.items():
         PREPROCESSING_BATCHES.append((sample, batch))
 x = [len(x) for x in sample2cells.values()]
 NUM_CELLS = sum(x)
-
 
 
 
@@ -814,7 +825,7 @@ rule add_read_groups:
         PICARD=PICARD,
     shell:
         """
-        for i in {input}/*.bam; do 
+        for i in {input}/*.bam; do
              j=`echo $i | sed -e 's/cells.bam/cells.rg.bam/'`
              mkdir -p `dirname $j`
              {params.PICARD} AddOrReplaceReadGroups \
@@ -1016,7 +1027,7 @@ rule clean_batch_header:
     params:
         header_file=opj(PBULK_DIR, "{sample}.{batch}.merged.header"),
         clean_header_file=opj(PBULK_DIR, "{sample}.{batch}.header"),
-        log_file=opj(PBULK_LOG_DIR, "{sample}.{batch}.pb.clean.log"),
+        log_file=opj(PBULK_LOG_DIR, "{sample}.{batch}.clean.log"),
     script:
         "scripts/clean_batch_header.py"
 
@@ -1035,7 +1046,7 @@ rule merge_batches_to_sample:
         sample="{sample}",
         SAMTOOLS=SAMTOOLS,
         PBULK_DIR=PBULK_DIR,
-    shell: 
+    shell:
         """
         TF={params.PBULK_DIR}/{params.sample}.files
         echo "{input}" | tr ' ' '\n' > $TF
@@ -1051,7 +1062,7 @@ rule clean_sample_header:
     params:
         header_file=opj(PBULK_DIR, "{sample}.merged.header"),
         clean_header_file=opj(PBULK_DIR, "{sample}.header"),
-        log_file=opj(PBULK_LOG_DIR, "{sample}.log"),
+        log_file=opj(PBULK_LOG_DIR, "{sample}.clean.log"),
     script:
         "scripts/clean_batch_header.py"
 
@@ -1067,7 +1078,7 @@ rule merge_samples_to_pseudobulk:
     params:
         SAMTOOLS=SAMTOOLS,
         PBULK_DIR=PBULK_DIR,
-    shell: 
+    shell:
         """
         TF={params.PBULK_DIR}/pseudobulk.files
         echo "{input}" | tr ' ' '\n' > $TF
@@ -1290,7 +1301,7 @@ rule clean_pileup_file:
             MATRIX_DIR, "{sample,[A-Za-z0-9_-]+}.{batch,\d+}.pileup")),
     shell:
         """
-        for i in {input}/*.pileup; do 
+        for i in {input}/*.pileup; do
              j=`echo $i | sed -e 's/.raw.pileup/.pileup/'`
              mkdir -p `dirname $j`
              cat $i | awk -F'\t' '$4 != 0 {{print}}' > $j
@@ -1361,7 +1372,6 @@ rule add_cell_names_to_coverage:
             sed "1s/\$/\tCell/; 2,\$s/\$/\t$k/" $i > $j
         done
         """
-
 
 rule merge_coverage_by_batch:
     input:
@@ -1776,7 +1786,7 @@ rule combine_trees:
         {params.LOGCOMBINER} -b {params.perc_burnin} \
             -log output/beast2/tree.log -o {output} >& {log}
         """
-        
+
 
 rule make_mcc_tree:
     input:
@@ -1833,7 +1843,7 @@ def calc_model_indexes(
     # Indexes are 1-based and inclusive indexes into the <model>$trees
     # variable.
     import math
-    
+
     assert min_perc >= 0 and min_perc <= 100
     assert max_perc > 1 and max_perc <= 100
     assert min_perc < max_perc
@@ -1843,7 +1853,7 @@ def calc_model_indexes(
     #num_samples = total_iterations / sample_interval
     #i_min = 1
     #i_max = num_samples + 1
-    
+
     # Calculate the ideal starting iteration.
     x1 = total_iterations * min_perc / 100.0
     x2 = total_iterations * max_perc / 100.0
@@ -1921,7 +1931,7 @@ i_min, i_max = x
 MAX_SAMPLES = 100   # Don't plot too many trees, or will be messy.
 if i_max-i_min+1 > MAX_SAMPLES:
     i_min = max(i_max-MAX_SAMPLES, 0)
- 
+
 
 rule plot_densitree:
     input:
