@@ -25,8 +25,10 @@ def list_good_sites(genotype_count_file, perc_mixed_calls, outfile):
         if max_perc > 100-perc_mixed_calls:
             continue
         # Keep this site.
-        x = site.split("_")
-        assert len(x) == 4
+        # Some chromosome names contain underscores:
+        # chr11_KI270831v1_alt_193437_G_A
+        x = site.rsplit("_", 3)
+        assert len(x) == 4, f"I cannot parse site: {site!r}"
         assert len(x) == len(outheader)
         print("\t".join(x), file=outhandle)
 
