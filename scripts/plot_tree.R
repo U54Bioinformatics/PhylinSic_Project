@@ -29,6 +29,7 @@ if(any(is.na(I))) stop("tree metadata mismtch")
 metadata <- metadata[I,]
 category <- rep("", n)
 category[1:length(I)] <- metadata[["Category"]]
+category[is.na(category)] <- ""
 
 # Really dumb and slow algorithm.
 changed <- TRUE

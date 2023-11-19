@@ -14,7 +14,8 @@
 # Versions:
 #  1  230721  Initial release.
 #  2  230921  Miscellaneous bug fixes, multiple batches.
-VERSION = 2
+#  3  231119  Snakemake does not quit when rerooted tree not generated.
+VERSION = 3
 
 
 
@@ -1819,19 +1820,28 @@ rule analyze_mcc_tree:
         opj(PHYLO_DIR, "max_clade_cred.nexus.txt"),
         opj(DEMUX_DIR, "cells.txt"),
     output:
+        # analyze_mcc_tree.R will generate the rerooted trees only if
+        # a root node can be determined (e.g. there is an outgroup).
+        # If not, then the files will not be generated.
+        #
+        # Snakemake considers missing output files to be errors.  So
+        # make the rerooted trees parameters rather than output files.
         opj(PHYLO_DIR, "max_clade_cred.newick.txt"),
-        opj(PHYLO_DIR, "max_clade_cred.rerooted.newick.txt"),
+        #opj(PHYLO_DIR, "max_clade_cred.rerooted.newick.txt"),
         opj(PHYLO_DIR, "max_clade_cred.dist.txt"),
         opj(PHYLO_DIR, "max_clade_cred.metadata.txt"),
-        opj(PHYLO_DIR, "max_clade_cred.rerooted.metadata.txt"),
+        #opj(PHYLO_DIR, "max_clade_cred.rerooted.metadata.txt"),
     log:
         opj(PHYLO_LOG_DIR, "max_clade_cred.analysis.log")
     params:
         RSCRIPT=RSCRIPT,
+        REROOT_NEWICK=opj(PHYLO_DIR, "max_clade_cred.rerooted.newick.txt"),
+        REROOT_META=opj(PHYLO_DIR, "max_clade_cred.rerooted.metadata.txt"),
     shell:
         """{params.RSCRIPT} scripts/analyze_mcc_tree.R \
             {input[0]} {input[1]} \
-            {output[0]} {output[1]} {output[2]} {output[3]} {output[4]}
+            {output[0]} {params.REROOT_NEWICK} \
+            {output[1]} {output[2]} {params.REROOT_META} \
             >& {log}
         """
 
