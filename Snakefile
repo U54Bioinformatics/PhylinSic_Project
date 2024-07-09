@@ -15,7 +15,9 @@
 #  1  230721  Initial release.
 #  2  230921  Miscellaneous bug fixes, multiple batches.
 #  3  231119  Snakemake does not quit when rerooted tree not generated.
-VERSION = 3
+#  4  240709  Now correctly merges multiple batches into pseudobulk.
+#             Reported by Sara Costa through github.
+VERSION = 4
 
 
 
@@ -479,6 +481,10 @@ opj = os.path.join
 
 CELL_FILE = "data/cells.txt"
 assert os.path.exists(CELL_FILE), "File not found: %s" % CELL_FILE
+CELLRANGER_DIR = "data/cellranger"
+assert os.path.exists(CELLRANGER_DIR), "Directory not found: %s" % \
+  CELLRANGER_DIR
+
 
 GENOME_DIR = "output"
 DEMUX_DIR = "output/02_demux"
@@ -579,7 +585,6 @@ for sample, cells in sample2cells.items():
         PREPROCESSING_BATCHES.append((sample, batch))
 x = [len(x) for x in sample2cells.values()]
 NUM_CELLS = sum(x)
-
 
 
 
@@ -694,7 +699,7 @@ rule create_ref_genome_dict:
 
 rule extract_cellranger_bam:
     input:
-        "data/cellranger"
+        CELLRANGER_DIR
     output:
         opj(DEMUX_DIR, "{sample,[A-Za-z0-9_-]+}.bam")
     params:
@@ -1082,7 +1087,7 @@ rule merge_samples_to_pseudobulk:
     shell:
         """
         TF={params.PBULK_DIR}/pseudobulk.files
-        echo "{input}" | tr ' ' '\n' > $TF
+        echo "{input}" | tr ' ' '\n' | sort | uniq > $TF
         {params.SAMTOOLS} merge -f -b $TF {output} >& {log}
         """
 
